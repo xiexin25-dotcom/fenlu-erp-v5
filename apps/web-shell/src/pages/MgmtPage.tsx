@@ -10,6 +10,7 @@ const sections: Record<string, { icon: typeof FileText; title: string; subtitle:
       { title: '总账科目', desc: 'GL 科目树', path: '/mgmt/finance/accounts' },
       { title: '记账凭证', desc: '借贷平衡校验', path: '/mgmt/finance/journal' },
       { title: '应付 / 应收', desc: 'AP / AR 管理', path: '/mgmt/finance/apar' },
+      { title: '财务三表', desc: '资产负债表 / 利润表 / 现金流量表', path: '/mgmt/finance/statements' },
     ],
   },
   '/mgmt/hr': {

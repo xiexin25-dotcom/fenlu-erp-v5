@@ -43,6 +43,7 @@ import ApprovalList from '@/pages/mgmt/ApprovalList';
 import UserList from '@/pages/mgmt/UserList';
 import AuditLogList from '@/pages/mgmt/AuditLogList';
 import KPIPage from '@/pages/mgmt/KPIPage';
+import FinancialStatements from '@/pages/mgmt/FinancialStatements';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
@@ -105,6 +106,7 @@ export function App() {
               {/* MGMT */}
               <Route path="mgmt/finance" element={<MgmtPage />} />
               <Route path="mgmt/finance/accounts" element={<GLAccountList />} />
+              <Route path="mgmt/finance/statements" element={<FinancialStatements />} />
               <Route path="mgmt/finance/journal" element={<JournalList />} />
               <Route path="mgmt/finance/apar" element={<APARList />} />
               <Route path="mgmt/hr" element={<MgmtPage />} />
