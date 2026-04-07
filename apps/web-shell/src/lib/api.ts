@@ -162,33 +162,44 @@ export interface SupplierRating { id: string; score: number; period: string; eva
 function tenantId() { return localStorage.getItem('tenant_id') || ''; }
 
 export const scmApi = {
-  listSuppliers: (params?: { tier?: string; search?: string; skip?: number; limit?: number }) => {
+  listSuppliers: async (params?: { tier?: string; search?: string; skip?: number; limit?: number }) => {
     const q = new URLSearchParams();
     q.set('tenant_id', tenantId());
     if (params?.tier) q.set('tier', params.tier);
     if (params?.search) q.set('search', params.search);
     q.set('skip', String(params?.skip ?? 0));
     q.set('limit', String(params?.limit ?? 20));
-    return api.get<Supplier[]>(`/scm/suppliers?${q}`);
+    const r = await api.get<{ items: Supplier[] } | Supplier[]>(`/scm/suppliers?${q}`);
+    return Array.isArray(r) ? r : r.items || [];
   },
   getSupplier: (id: string) => api.get<Supplier>(`/scm/suppliers/${id}`),
   createSupplier: (data: Partial<Supplier>) => api.post<Supplier>(`/scm/suppliers?tenant_id=${tenantId()}`, data),
   listRatings: (supplierId: string) => api.get<SupplierRating[]>(`/scm/suppliers/${supplierId}/ratings?tenant_id=${tenantId()}`),
   // Purchase Orders
-  listPOs: () => api.get<PurchaseOrder[]>(`/scm/purchase-orders?tenant_id=${tenantId()}`),
+  listPOs: async () => {
+    const r = await api.get<{ items: PurchaseOrder[] } | PurchaseOrder[]>(`/scm/purchase-orders?tenant_id=${tenantId()}`);
+    return Array.isArray(r) ? r : r.items || [];
+  },
   // Warehouses
-  listWarehouses: () => api.get<Warehouse[]>(`/scm/warehouses?tenant_id=${tenantId()}&skip=0&limit=50`),
+  listWarehouses: async () => {
+    const r = await api.get<{ items: Warehouse[] } | Warehouse[]>(`/scm/warehouses?tenant_id=${tenantId()}&skip=0&limit=50`);
+    return Array.isArray(r) ? r : r.items || [];
+  },
   createWarehouse: (data: Partial<Warehouse>) => api.post<Warehouse>(`/scm/warehouses?tenant_id=${tenantId()}`, data),
   // Inventory
-  listInventory: (params?: { product_id?: string; warehouse_id?: string }) => {
+  listInventory: async (params?: { product_id?: string; warehouse_id?: string }) => {
     const q = new URLSearchParams();
     q.set('tenant_id', tenantId());
     if (params?.product_id) q.set('product_id', params.product_id);
     if (params?.warehouse_id) q.set('warehouse_id', params.warehouse_id);
-    return api.get<InventoryItem[]>(`/scm/inventory?${q}`);
+    const r = await api.get<{ items: InventoryItem[] } | InventoryItem[]>(`/scm/inventory?${q}`);
+    return Array.isArray(r) ? r : r.items || [];
   },
   // Stocktake
-  listStocktakes: () => api.get<Stocktake[]>(`/scm/stocktakes?tenant_id=${tenantId()}`),
+  listStocktakes: async () => {
+    const r = await api.get<{ items: Stocktake[] } | Stocktake[]>(`/scm/stocktakes?tenant_id=${tenantId()}`);
+    return Array.isArray(r) ? r : r.items || [];
+  },
   createStocktake: (data: Partial<Stocktake>) => api.post<Stocktake>(`/scm/stocktakes?tenant_id=${tenantId()}`, data),
 };
 
