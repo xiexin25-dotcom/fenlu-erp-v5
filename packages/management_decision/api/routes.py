@@ -404,6 +404,30 @@ async def update_ar(
     return ARRecordOut.model_validate(record)
 
 
+@finance_router.get(
+    "/statements/{statement_type}",
+    dependencies=[Depends(require_permission("mgmt.statements", "read"))],
+)
+async def get_financial_statement(
+    statement_type: str,
+    user: CurrentUser,
+    period: str = Query(..., pattern=r"^\d{4}-\d{2}$", description="报表周期 YYYY-MM"),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """三张财务报表: balance_sheet / income / cash_flow。"""
+    from packages.management_decision.services.statements import generate_statement
+
+    try:
+        return await generate_statement(
+            session,
+            tenant_id=user.tenant_id,
+            statement_type=statement_type,
+            period=period,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+
 router.include_router(finance_router)
 
 
