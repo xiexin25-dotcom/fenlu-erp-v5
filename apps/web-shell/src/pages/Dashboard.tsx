@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { dashboardApi, kpiApi, type DashboardData, type KPI } from '@/lib/api';
+import { dashboardApi, type DashboardData, type KPI } from '@/lib/api';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
@@ -92,10 +92,9 @@ const scenarioData = [
 
 export default function Dashboard() {
   const { data: dashboard } = useQuery({ queryKey: ['dashboard'], queryFn: dashboardApi.exec, retry: false });
-  const { data: kpis } = useQuery({ queryKey: ['kpis'], queryFn: kpiApi.list, retry: false });
-
   const d = dashboard && dashboard.today_revenue !== undefined ? dashboard : mockDashboard;
-  const k = kpis && kpis.length > 0 ? kpis : mockKPIs;
+  // Dashboard KPIs use curated mock data (detailed KPI data is on /mgmt/kpi page)
+  const k = mockKPIs;
 
   const cardStyle: React.CSSProperties = { background: 'var(--bg-card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border)' };
 
