@@ -443,6 +443,18 @@ async def add_routing_operation(
 # ── ECN ───────────────────────────────────────────────────────────────────── #
 
 
+@router.get("/ecn", response_model=list[ECNOut])
+async def list_ecns(
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+) -> list[ECNOut]:
+    from packages.product_lifecycle.services.ecn_service import list_ecns as _list
+    ecns = await _list(session, tenant_id=user.tenant_id, skip=skip, limit=limit)
+    return [ECNOut.model_validate(e) for e in ecns]
+
+
 @router.post("/ecn", response_model=ECNOut, status_code=201)
 async def create_ecn(
     body: ECNCreate,

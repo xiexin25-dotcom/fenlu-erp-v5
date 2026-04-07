@@ -49,6 +49,24 @@ async def create_ecn(
     return ecn
 
 
+async def list_ecns(
+    session: AsyncSession,
+    *,
+    tenant_id: UUID,
+    skip: int = 0,
+    limit: int = 50,
+) -> list[ECN]:
+    result = await session.execute(
+        select(ECN)
+        .options(selectinload(ECN.product))
+        .where(ECN.tenant_id == tenant_id)
+        .order_by(ECN.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    return list(result.scalars().all())
+
+
 async def get_ecn(
     session: AsyncSession,
     *,
