@@ -11,10 +11,14 @@ from packages.shared.db import get_session
 
 from .schemas import (
     BOMPurchaseResponse,
+    InventoryListParams,
+    InventoryResponse,
     LocationCreate,
     LocationResponse,
     LocationTreeNode,
     LocationUpdate,
+    MaterialIssueRequest,
+    MaterialIssueResponse,
     POCreate,
     POResponse,
     PRCreate,
@@ -25,6 +29,7 @@ from .schemas import (
     RFQLineUpdate,
     RFQResponse,
     StatusTransition,
+    StockMoveResponse,
     SupplierCreate,
     SupplierListParams,
     SupplierProductCreate,
@@ -42,6 +47,7 @@ from .schemas import (
     WarehouseUpdate,
 )
 from packages.shared.contracts.supply_chain import PurchaseRequestFromBOM
+from packages.supply_chain.services.inventory_service import InventoryService
 from packages.supply_chain.services.purchase_service import PurchaseService
 from packages.supply_chain.services.supplier_service import SupplierService
 from packages.supply_chain.services.warehouse_service import WarehouseService
@@ -601,3 +607,63 @@ async def update_location(
     if loc is None:
         raise HTTPException(status_code=404, detail="Location not found")
     return LocationResponse.model_validate(loc)
+
+
+# =========================================================================== #
+# Inventory
+# =========================================================================== #
+
+
+@router.get("/inventory", response_model=dict)
+async def list_inventory(
+    tenant_id: UUID = Depends(_tenant_id),
+    product_id: UUID | None = None,
+    warehouse_id: UUID | None = None,
+    batch_no: str | None = None,
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=200),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    params = InventoryListParams(
+        product_id=product_id, warehouse_id=warehouse_id,
+        batch_no=batch_no, page=page, size=size,
+    )
+    svc = InventoryService(session)
+    items, total = await svc.list_inventory(tenant_id, params)
+    return {
+        "items": [InventoryResponse.model_validate(inv) for inv in items],
+        "total": total,
+        "page": page,
+        "size": size,
+    }
+
+
+# =========================================================================== #
+# Issue (Lane 2 领料)
+# =========================================================================== #
+
+
+@router.post("/issue", response_model=MaterialIssueResponse, status_code=201)
+async def issue_material(
+    body: MaterialIssueRequest,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> MaterialIssueResponse:
+    """Lane 2 领料端点: 扣减库存,创建 production_issue StockMove。"""
+    svc = InventoryService(session)
+    try:
+        move, inv = await svc.issue_material(
+            tenant_id=tenant_id,
+            product_id=body.product_id,
+            quantity=body.quantity,
+            uom=body.uom,
+            warehouse_id=body.warehouse_id,
+            batch_no=body.batch_no,
+            work_order_id=body.work_order_id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return MaterialIssueResponse(
+        move=StockMoveResponse.model_validate(move),
+        remaining_available=inv.available,
+    )

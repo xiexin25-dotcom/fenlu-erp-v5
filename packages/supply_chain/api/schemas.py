@@ -493,3 +493,90 @@ class WarehouseListParams(BaseModel):
     search: str | None = None
     page: int = Field(1, ge=1)
     size: int = Field(20, ge=1, le=200)
+
+
+# =========================================================================== #
+# 库存 (Inventory)
+# =========================================================================== #
+
+
+class InventoryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    product_id: UUID
+    warehouse_id: UUID
+    location_code: str | None = None
+    uom: str
+    batch_no: str
+    expiry_date: datetime | None = None
+    on_hand: Decimal
+    reserved: Decimal
+    in_transit: Decimal
+    available: Decimal
+    tenant_id: UUID
+
+
+class InventoryListParams(BaseModel):
+    product_id: UUID | None = None
+    warehouse_id: UUID | None = None
+    batch_no: str | None = None
+    page: int = Field(1, ge=1)
+    size: int = Field(20, ge=1, le=200)
+
+
+# =========================================================================== #
+# 库存移动 (StockMove)
+# =========================================================================== #
+
+
+class StockMoveCreate(BaseModel):
+    """通用库存移动创建 (内部使用, 外部通过特定端点如 /issue 触发)。"""
+    type: str
+    product_id: UUID
+    quantity: Decimal = Field(..., gt=0, max_digits=18, decimal_places=4)
+    uom: str = "pcs"
+    warehouse_id: UUID
+    from_location: str | None = None
+    to_location: str | None = None
+    batch_no: str = ""
+    reference_id: UUID | None = None
+    remark: str | None = None
+
+
+class StockMoveResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    move_no: str
+    type: str
+    product_id: UUID
+    quantity: Decimal
+    uom: str
+    warehouse_id: UUID
+    from_location: str | None = None
+    to_location: str | None = None
+    batch_no: str
+    reference_id: UUID | None = None
+    remark: str | None = None
+    tenant_id: UUID
+
+
+# =========================================================================== #
+# 领料 (Lane 2 Issue)
+# =========================================================================== #
+
+
+class MaterialIssueRequest(BaseModel):
+    """Lane 2 → Lane 3: POST /scm/issue 领料请求。"""
+    product_id: UUID
+    quantity: Decimal = Field(..., gt=0, max_digits=18, decimal_places=4)
+    uom: str = "pcs"
+    warehouse_id: UUID
+    batch_no: str = ""
+    work_order_id: UUID | None = Field(None, description="Lane 2 工单 ID")
+
+
+class MaterialIssueResponse(BaseModel):
+    move: StockMoveResponse
+    remaining_available: Decimal

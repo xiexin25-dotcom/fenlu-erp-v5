@@ -22,6 +22,7 @@ from packages.shared.models import (  # noqa: F401
     UserRole,
 )
 from packages.supply_chain.models import (  # noqa: F401
+    Inventory,
     Location,
     PurchaseOrder,
     PurchaseOrderLine,
@@ -31,6 +32,7 @@ from packages.supply_chain.models import (  # noqa: F401
     PurchaseRequestLine,
     RFQ,
     RFQLine,
+    StockMove,
     Supplier,
     SupplierProduct,
     SupplierRating,
