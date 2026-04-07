@@ -17,6 +17,7 @@ from packages.product_lifecycle.models import (  # noqa: F401
     BOM,
     BOMItem,
     CadAttachment,
+    ECN,
     Product,
     ProductVersion,
     Routing,

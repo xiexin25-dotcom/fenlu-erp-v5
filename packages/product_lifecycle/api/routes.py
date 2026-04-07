@@ -17,6 +17,9 @@ from .schemas import (
     BOMItemOut,
     BOMOut,
     CadAttachmentOut,
+    ECNCreate,
+    ECNOut,
+    ECNTransition,
     ProductCreate,
     ProductOut,
     ProductVersionCreate,
@@ -411,3 +414,71 @@ async def add_routing_operation(
     except ValueError as e:
         raise HTTPException(404, str(e)) from e
     return RoutingOperationOut.model_validate(op)
+
+
+# ── ECN ───────────────────────────────────────────────────────────────────── #
+
+
+@router.post("/ecn", response_model=ECNOut, status_code=201)
+async def create_ecn(
+    body: ECNCreate,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> ECNOut:
+    from packages.product_lifecycle.services.ecn_service import create_ecn as _create
+
+    try:
+        ecn = await _create(
+            session,
+            tenant_id=user.tenant_id,
+            user_id=user.id,
+            product_id=body.product_id,
+            ecn_no=body.ecn_no,
+            title=body.title,
+            reason=body.reason,
+            description=body.description,
+        )
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+    return ECNOut.model_validate(ecn)
+
+
+@router.get("/ecn/{ecn_id}", response_model=ECNOut)
+async def get_ecn_detail(
+    ecn_id: UUID,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> ECNOut:
+    from packages.product_lifecycle.services.ecn_service import get_ecn
+
+    ecn = await get_ecn(session, tenant_id=user.tenant_id, ecn_id=ecn_id)
+    if ecn is None:
+        raise HTTPException(404, "ECN not found")
+    return ECNOut.model_validate(ecn)
+
+
+@router.post("/ecn/{ecn_id}/transition", response_model=ECNOut)
+async def transition_ecn(
+    ecn_id: UUID,
+    body: ECNTransition,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> ECNOut:
+    from packages.product_lifecycle.services.ecn_service import (
+        InvalidTransitionError,
+        transition_ecn as _transition,
+    )
+
+    try:
+        ecn = await _transition(
+            session,
+            tenant_id=user.tenant_id,
+            user_id=user.id,
+            ecn_id=ecn_id,
+            target_status=body.target_status,
+        )
+    except InvalidTransitionError as e:
+        raise HTTPException(422, str(e)) from e
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+    return ECNOut.model_validate(ecn)

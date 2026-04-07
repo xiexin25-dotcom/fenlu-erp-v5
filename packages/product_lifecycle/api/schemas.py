@@ -169,3 +169,36 @@ class RoutingOut(BaseModel):
     total_standard_minutes: float = 0.0
     created_at: datetime
     updated_at: datetime
+
+
+# ── ECN ───────────────────────────────────────────────────────────────────── #
+
+
+class ECNCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    product_id: UUID
+    ecn_no: str = Field(..., max_length=64)
+    title: str = Field(..., max_length=255)
+    reason: str | None = None
+    description: str | None = None
+
+
+class ECNTransition(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    target_status: str
+
+
+class ECNOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    product_id: UUID
+    ecn_no: str
+    status: str
+    title: str
+    reason: str | None = None
+    description: str | None = None
+    created_at: datetime
+    updated_at: datetime
