@@ -5,10 +5,13 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from packages.shared.contracts.base import DocumentStatus, Money, Quantity
 from packages.shared.contracts.product_lifecycle import ProductCategory
 
 
@@ -50,3 +53,56 @@ class ProductVersionOut(BaseModel):
     version: str
     change_summary: str | None = None
     is_current: bool
+
+
+# ── BOM ───────────────────────────────────────────────────────────────────── #
+
+
+class BOMCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    product_id: UUID
+    version: str = Field(..., max_length=32)
+    description: str | None = None
+
+
+class BOMItemCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    component_id: UUID
+    quantity: Decimal = Field(..., gt=0, max_digits=18, decimal_places=4)
+    uom: str = Field(..., max_length=16)
+    scrap_rate: Decimal = Field(Decimal("0"), ge=0, le=1, max_digits=5, decimal_places=4)
+    unit_cost: Decimal | None = Field(None, ge=0, max_digits=18, decimal_places=4)
+    is_optional: bool = False
+    remark: str | None = None
+
+
+class BOMItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    component_id: UUID
+    component_code: str = ""
+    component_name: str = ""
+    quantity: Decimal
+    uom: str
+    scrap_rate: Decimal
+    unit_cost: Decimal | None = None
+    is_optional: bool
+    remark: str | None = None
+
+
+class BOMOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    product_id: UUID
+    product_code: str = ""
+    version: str
+    status: str
+    description: str | None = None
+    items: list[BOMItemOut] = []
+    total_cost: Money | None = None
+    created_at: datetime
+    updated_at: datetime
