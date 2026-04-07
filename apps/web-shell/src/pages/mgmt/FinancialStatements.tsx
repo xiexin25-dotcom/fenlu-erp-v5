@@ -9,7 +9,7 @@ function money(v: unknown): string {
   return (n || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-interface StatementItem { code: string; name: string; amount: number; }
+interface StatementItem { code: string; name: string; amount?: number; balance?: number; }
 interface BalanceSheet {
   title: string; period: string; as_of: string;
   assets: { items: StatementItem[]; total: number };
@@ -31,19 +31,24 @@ interface CashFlow {
 }
 
 function Section({ title, items, total, color }: { title: string; items: StatementItem[]; total: number; color: string }) {
+  // Filter out zero-balance and test items
+  const filtered = items.filter(it => {
+    const v = Math.abs(it.balance ?? it.amount ?? 0);
+    return v > 0.01 && !it.code.startsWith('T');
+  });
   return (
     <div className="mb-6">
       <h4 className="text-[14px] font-semibold mb-2" style={{ color }}>{title}</h4>
       <table className="w-full text-[13px]">
         <tbody>
-          {items.map((it, i) => (
+          {filtered.map((it, i) => (
             <tr key={i} style={{ borderBottom: '1px solid var(--divider)' }}>
               <td className="py-2 pl-4 font-mono text-[12px]" style={{ color: 'var(--fg-tertiary)' }}>{it.code}</td>
               <td className="py-2">{it.name}</td>
-              <td className="py-2 text-right pr-4">¥{money(it.amount)}</td>
+              <td className="py-2 text-right pr-4">¥{money(it.balance ?? it.amount ?? 0)}</td>
             </tr>
           ))}
-          {items.length === 0 && (
+          {filtered.length === 0 && (
             <tr><td colSpan={3} className="py-3 text-center text-[12px]" style={{ color: 'var(--fg-tertiary)' }}>暂无数据</td></tr>
           )}
         </tbody>
