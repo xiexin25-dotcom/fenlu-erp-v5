@@ -21,6 +21,10 @@ from .schemas import (
     ARRecordCreate,
     ARRecordOut,
     ARRecordUpdate,
+    AttendanceCreate,
+    AttendanceImportRequest,
+    AttendanceImportResult,
+    AttendanceOut,
     EmployeeCreate,
     EmployeeOut,
     EmployeeUpdate,
@@ -555,6 +559,104 @@ async def get_payroll_api(
     if payroll is None:
         raise HTTPException(status_code=404, detail="薪资批次不存在")
     return PayrollOut.model_validate(payroll)
+
+
+# --------------------------------------------------------------------------- #
+# Attendance (考勤)
+# --------------------------------------------------------------------------- #
+
+
+@hr_router.post(
+    "/attendance",
+    response_model=AttendanceOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_permission("mgmt.attendance", "create"))],
+)
+async def create_attendance_api(
+    body: AttendanceCreate,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> AttendanceOut:
+    from packages.management_decision.services.attendance import create_attendance
+
+    record = await create_attendance(
+        session,
+        tenant_id=user.tenant_id,
+        employee_id=body.employee_id,
+        work_date=body.work_date,
+        clock_in=body.clock_in,
+        clock_out=body.clock_out,
+        status=body.status,
+        work_hours=body.work_hours,
+        overtime_hours=body.overtime_hours,
+        memo=body.memo,
+        created_by=user.id,
+    )
+    return AttendanceOut.model_validate(record)
+
+
+@hr_router.get(
+    "/attendance",
+    response_model=list[AttendanceOut],
+    dependencies=[Depends(require_permission("mgmt.attendance", "read"))],
+)
+async def list_attendance_api(
+    user: CurrentUser,
+    employee_id: UUID | None = Query(None),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
+    session: AsyncSession = Depends(get_session),
+) -> list[AttendanceOut]:
+    from packages.management_decision.services.attendance import list_attendance
+
+    records = await list_attendance(
+        session,
+        tenant_id=user.tenant_id,
+        employee_id=employee_id,
+        date_from=date_from,
+        date_to=date_to,
+    )
+    return [AttendanceOut.model_validate(r) for r in records]
+
+
+@hr_router.get(
+    "/attendance/{record_id}",
+    response_model=AttendanceOut,
+    dependencies=[Depends(require_permission("mgmt.attendance", "read"))],
+)
+async def get_attendance_api(
+    record_id: UUID,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> AttendanceOut:
+    from packages.management_decision.services.attendance import get_attendance
+
+    record = await get_attendance(session, tenant_id=user.tenant_id, record_id=record_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="考勤记录不存在")
+    return AttendanceOut.model_validate(record)
+
+
+@hr_router.post(
+    "/attendance/import",
+    response_model=AttendanceImportResult,
+    dependencies=[Depends(require_permission("mgmt.attendance", "create"))],
+)
+async def import_attendance_api(
+    body: AttendanceImportRequest,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> AttendanceImportResult:
+    """V4 考勤数据批量导入 — 用 employee_no 关联员工。"""
+    from packages.management_decision.services.attendance import import_attendance_batch
+
+    result = await import_attendance_batch(
+        session,
+        tenant_id=user.tenant_id,
+        rows=[r.model_dump() for r in body.rows],
+        created_by=user.id,
+    )
+    return AttendanceImportResult(**result)
 
 
 router.include_router(hr_router)

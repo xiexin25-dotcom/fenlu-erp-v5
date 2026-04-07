@@ -5,7 +5,7 @@ Management Decision · Pydantic schemas (request / response)
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, time
 from decimal import Decimal
 from uuid import UUID
 
@@ -231,3 +231,54 @@ class PayrollOut(BaseSchema):
     head_count: int
     memo: str | None
     items: list[PayrollItemOut]
+
+
+# --------------------------------------------------------------------------- #
+# Attendance (考勤)
+# --------------------------------------------------------------------------- #
+
+
+class AttendanceCreate(BaseSchema):
+    employee_id: UUID
+    work_date: date
+    clock_in: time | None = None
+    clock_out: time | None = None
+    status: str = Field("normal", description="normal/late/early_leave/absent/leave/holiday")
+    work_hours: Decimal = Field(Decimal("8.00"), ge=0, max_digits=5, decimal_places=2)
+    overtime_hours: Decimal = Field(Decimal("0"), ge=0, max_digits=5, decimal_places=2)
+    memo: str | None = None
+
+
+class AttendanceOut(BaseSchema):
+    id: UUID
+    employee_id: UUID
+    work_date: date
+    clock_in: time | None
+    clock_out: time | None
+    status: str
+    work_hours: Decimal
+    overtime_hours: Decimal
+    memo: str | None
+
+
+class AttendanceImportRow(BaseSchema):
+    """V4 ETL 批量导入行 — 用 employee_no 而非 UUID 关联。"""
+
+    employee_no: str = Field(..., max_length=32)
+    work_date: date
+    clock_in: time | None = None
+    clock_out: time | None = None
+    status: str = "normal"
+    work_hours: Decimal = Field(Decimal("8.00"), ge=0, max_digits=5, decimal_places=2)
+    overtime_hours: Decimal = Field(Decimal("0"), ge=0, max_digits=5, decimal_places=2)
+    memo: str | None = None
+
+
+class AttendanceImportRequest(BaseSchema):
+    rows: list[AttendanceImportRow] = Field(..., min_length=1)
+
+
+class AttendanceImportResult(BaseSchema):
+    imported: int
+    skipped: int
+    errors: list[str]

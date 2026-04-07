@@ -152,9 +152,29 @@ async def run_payroll(
         created_by=created_by,
     )
 
+    from packages.management_decision.services.attendance import (
+        get_monthly_attendance_summary,
+    )
+
+    # 薪资参数: 加班费 = base / 21.75 / 8 * 1.5 * overtime_hours
+    # 缺勤扣除 = base / 21.75 * absent_days
+    MONTHLY_WORK_DAYS = Decimal("21.75")
+    OVERTIME_RATE = Decimal("1.5")
+    DAILY_HOURS = Decimal("8")
+
     total = Decimal("0")
     for emp in employees:
-        net = emp.base_salary  # 基础版: 实发 = 基本工资 (后续 TASK-MGMT-004 加考勤扣减)
+        summary = await get_monthly_attendance_summary(
+            session, tenant_id=tenant_id, employee_id=emp.id, period=period
+        )
+        hourly_rate = emp.base_salary / MONTHLY_WORK_DAYS / DAILY_HOURS
+        overtime_pay = (hourly_rate * OVERTIME_RATE * summary["overtime_hours"]).quantize(
+            Decimal("0.0001")
+        )
+        daily_rate = emp.base_salary / MONTHLY_WORK_DAYS
+        deductions = (daily_rate * summary["absent_days"]).quantize(Decimal("0.0001"))
+        net = emp.base_salary + overtime_pay - deductions
+
         item = PayrollItem(
             id=uuid4(),
             tenant_id=tenant_id,
@@ -163,8 +183,8 @@ async def run_payroll(
             employee_no=emp.employee_no,
             employee_name=emp.name,
             base_salary=emp.base_salary,
-            overtime_pay=Decimal("0"),
-            deductions=Decimal("0"),
+            overtime_pay=overtime_pay,
+            deductions=deductions,
             net_pay=net,
         )
         payroll.items.append(item)
