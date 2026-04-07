@@ -91,6 +91,26 @@ from packages.shared.models import (  # noqa: F401
     User,
     UserRole,
 )
+from packages.supply_chain.models import (  # noqa: F401
+    Inventory,
+    Location,
+    PurchaseOrder,
+    PurchaseOrderLine,
+    PurchaseReceipt,
+    PurchaseReceiptLine,
+    PurchaseRequest,
+    PurchaseRequestLine,
+    RFQ,
+    RFQLine,
+    StockMove,
+    Stocktake,
+    StocktakeLine,
+    Supplier,
+    SupplierProduct,
+    SupplierRating,
+    SupplierTierChange,
+    Warehouse,
+)
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config

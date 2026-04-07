@@ -44,6 +44,7 @@ def metadata() -> Any:
     # 必须 import 模型让 metadata 注册
     import packages.production.models  # noqa: F401
     import packages.shared.models  # noqa: F401
+    import packages.supply_chain.models  # noqa: F401
     from packages.shared.db import Base
 
     for table in Base.metadata.tables.values():
