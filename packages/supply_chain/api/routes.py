@@ -665,6 +665,29 @@ async def list_inventory(
 # =========================================================================== #
 
 
+@router.post("/receive", response_model=MaterialIssueResponse, status_code=201)
+async def receive_stock(
+    body: MaterialIssueRequest,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> MaterialIssueResponse:
+    """采购入库端点: 增加库存,创建 purchase_receipt StockMove。"""
+    svc = InventoryService(session)
+    move, inv = await svc.receive_stock(
+        tenant_id=tenant_id,
+        product_id=body.product_id,
+        quantity=body.quantity,
+        uom=body.uom,
+        warehouse_id=body.warehouse_id,
+        batch_no=body.batch_no,
+        reference_id=body.work_order_id,
+    )
+    return MaterialIssueResponse(
+        move=StockMoveResponse.model_validate(move),
+        remaining_available=inv.on_hand,
+    )
+
+
 @router.post("/issue", response_model=MaterialIssueResponse, status_code=201)
 async def issue_material(
     body: MaterialIssueRequest,
