@@ -43,6 +43,7 @@ def metadata() -> Any:
     """剥离 schema (sqlite 不支持) 并返回 Base.metadata。"""
     # 必须 import 模型让 metadata 注册
     import packages.shared.models  # noqa: F401
+    import packages.supply_chain.models  # noqa: F401
     from packages.shared.db import Base
 
     for table in Base.metadata.tables.values():

@@ -21,6 +21,11 @@ from packages.shared.models import (  # noqa: F401
     User,
     UserRole,
 )
+from packages.supply_chain.models import (  # noqa: F401
+    Supplier,
+    SupplierRating,
+    SupplierTierChange,
+)
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
