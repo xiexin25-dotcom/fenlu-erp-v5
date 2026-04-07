@@ -5,6 +5,8 @@ import { useAuth } from '@/stores/auth';
 import Layout from '@/components/Layout';
 import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
+// Sales
+import SalesPage from '@/pages/SalesPage';
 // PLM
 import PlmPage from '@/pages/PlmPage';
 import ProductList from '@/pages/plm/ProductList';
@@ -74,6 +76,8 @@ export function App() {
           <Route element={<AuthGuard />}>
             <Route element={<ShellLayout />}>
               <Route index element={<Dashboard />} />
+              {/* Sales */}
+              <Route path="sales" element={<SalesPage />} />
               {/* PLM */}
               <Route path="plm" element={<PlmPage />} />
               <Route path="plm/products" element={<ProductList />} />

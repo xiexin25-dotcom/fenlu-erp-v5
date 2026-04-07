@@ -16,7 +16,7 @@ from packages.product_lifecycle.api.routes import router as plm_router
 from packages.production.api.routes import router as mfg_router
 from packages.supply_chain.api.routes import router as scm_router
 
-from apps.api_gateway.routers import auth, health, orgs
+from apps.api_gateway.routers import auth, health, orgs, sales
 from apps.api_gateway.settings import get_settings
 
 
@@ -57,6 +57,7 @@ def create_app() -> FastAPI:
     app.include_router(mfg_router)
     app.include_router(scm_router)
     app.include_router(mgmt_router)
+    app.include_router(sales.router)
     return app
 
 

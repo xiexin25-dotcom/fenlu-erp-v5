@@ -3,7 +3,7 @@ import { type ReactNode } from 'react';
 import { useAuth } from '@/stores/auth';
 import {
   LayoutDashboard, Package, Factory, Truck, BarChart3,
-  Users, FileText, ShieldCheck, LogOut, PanelLeftClose, PanelLeft, UserCog, ScrollText,
+  Users, FileText, ShieldCheck, LogOut, PanelLeftClose, PanelLeft, UserCog, ScrollText, ShoppingBag,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -11,6 +11,7 @@ const nav = [
   { to: '/', icon: LayoutDashboard, label: '驾驶舱' },
   { to: '/plm', icon: Package, label: '产品生命周期' },
   { to: '/mfg', icon: Factory, label: '生产制造' },
+  { to: '/sales', icon: ShoppingBag, label: '销售管理' },
   { to: '/scm', icon: Truck, label: '供应链' },
   { to: '/mgmt/finance', icon: FileText, label: '财务管理' },
   { to: '/mgmt/hr', icon: Users, label: '人力资源' },
