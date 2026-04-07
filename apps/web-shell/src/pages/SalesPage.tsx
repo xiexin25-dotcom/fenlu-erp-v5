@@ -55,6 +55,7 @@ export default function SalesPage() {
   const [showPayment, setShowPayment] = useState<string | null>(null);
   const [payAmount, setPayAmount] = useState('');
   const [filter, setFilter] = useState('');
+  const [confirm, setConfirm] = useState<{ id: string; action: string; title: string; msg: string } | null>(null);
   const [form, setForm] = useState({ order_no: '', customer_id: '', customer_name: '', order_date: '', delivery_date: '', salesperson: '', product_id: '', product_name: '', qty: '', price: '' });
 
   const { data: orders, isLoading } = useQuery({ queryKey: ['sales-orders', filter], queryFn: () => api.get<SalesOrder[]>(`/sales${filter ? `?${filter}` : ''}`) });
@@ -84,7 +85,7 @@ export default function SalesPage() {
     { key: 'action', header: '操作', render: r => (
       <div className="flex gap-1">
         {r.order_status === 'draft' && (
-          <button onClick={e => { e.stopPropagation(); api.post(`/sales/${r.id}/confirm`).then(() => qc.invalidateQueries({ queryKey: ['sales-orders'] })); }}
+          <button onClick={e => { e.stopPropagation(); setConfirm({ id: r.id, action: 'confirm', title: '确认订单', msg: `确认订单 ${r.order_no}（客户: ${r.customer_name}，金额: ¥${money(r.total_amount)}）？确认后不可撤销。` }); }}
             className="px-2 py-1 text-[11px] rounded text-white" style={{ background: 'var(--accent)' }}>确认</button>
         )}
         {r.payment_status !== 'paid' && r.order_status !== 'draft' && (
@@ -92,7 +93,7 @@ export default function SalesPage() {
             className="px-2 py-1 text-[11px] rounded text-white" style={{ background: 'var(--status-green-fg)' }}>收款</button>
         )}
         {r.shipment_status === 'unshipped' && r.order_status !== 'draft' && (
-          <button onClick={e => { e.stopPropagation(); api.post(`/sales/${r.id}/ship`).then(() => { qc.invalidateQueries({ queryKey: ['sales-orders'] }); qc.invalidateQueries({ queryKey: ['sales-stats'] }); }); }}
+          <button onClick={e => { e.stopPropagation(); setConfirm({ id: r.id, action: 'ship', title: '确认发货', msg: `确认对订单 ${r.order_no} 执行发货操作？发货后将更新发货状态。` }); }}
             className="px-2 py-1 text-[11px] rounded text-white" style={{ background: 'var(--status-amber-fg)' }}>发货</button>
         )}
       </div>
@@ -181,6 +182,37 @@ export default function SalesPage() {
           <FormInput type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} min="0.01" step="0.01" placeholder="0.00" required />
         </FormField>
       </FormDialog>
+
+      {/* Confirm Dialog */}
+      {confirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0" onClick={() => setConfirm(null)}
+            style={{ background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(4px)' }} />
+          <div className="relative w-full max-w-md mx-4 p-6" style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-xl)' }}>
+            <h3 className="text-[17px] font-semibold mb-3" style={{ color: 'var(--fg)' }}>{confirm.title}</h3>
+            <p className="text-[14px] mb-6" style={{ color: 'var(--fg-secondary)' }}>{confirm.msg}</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setConfirm(null)}
+                className="px-4 py-2 text-[13px] rounded-lg" style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}>
+                取消
+              </button>
+              <button onClick={async () => {
+                if (confirm.action === 'confirm') {
+                  await api.post(`/sales/${confirm.id}/confirm`);
+                } else if (confirm.action === 'ship') {
+                  await api.post(`/sales/${confirm.id}/ship`);
+                }
+                qc.invalidateQueries({ queryKey: ['sales-orders'] });
+                qc.invalidateQueries({ queryKey: ['sales-stats'] });
+                setConfirm(null);
+              }} className="px-4 py-2 text-[13px] font-medium rounded-lg text-white"
+                style={{ background: confirm.action === 'ship' ? 'var(--status-amber-fg)' : 'var(--accent)' }}>
+                确认执行
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
