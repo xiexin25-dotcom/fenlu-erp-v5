@@ -4,6 +4,7 @@ from .job_ticket import JobTicket
 from .qc_inspection import QCInspection
 from .safety import HazardAuditLog, SafetyHazard
 from .work_order import WorkOrder
+from .workstation import Workstation
 
 __all__ = [
     "EnergyMeter",
@@ -17,4 +18,5 @@ __all__ = [
     "QCInspection",
     "SafetyHazard",
     "WorkOrder",
+    "Workstation",
 ]
