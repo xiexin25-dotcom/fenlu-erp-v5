@@ -22,6 +22,7 @@ from packages.shared.models import (  # noqa: F401
     UserRole,
 )
 from packages.supply_chain.models import (  # noqa: F401
+    Location,
     PurchaseOrder,
     PurchaseOrderLine,
     PurchaseReceipt,
@@ -34,6 +35,7 @@ from packages.supply_chain.models import (  # noqa: F401
     SupplierProduct,
     SupplierRating,
     SupplierTierChange,
+    Warehouse,
 )
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection

@@ -383,3 +383,113 @@ class BOMPurchaseResponse(BaseModel):
         default_factory=list,
         description="没有匹配供应商的物料 ID 列表",
     )
+
+
+# =========================================================================== #
+# 仓库 (Warehouse)
+# =========================================================================== #
+
+
+class WarehouseCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    code: str = Field(..., min_length=1, max_length=16)
+    name: str = Field(..., min_length=1, max_length=64)
+    address: str | None = Field(None, max_length=256)
+    manager_id: UUID | None = None
+    remark: str | None = None
+    sort_order: int = 0
+
+
+class WarehouseUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    name: str | None = Field(None, min_length=1, max_length=64)
+    address: str | None = Field(None, max_length=256)
+    manager_id: UUID | None = None
+    is_active: bool | None = None
+    remark: str | None = None
+    sort_order: int | None = None
+
+
+class LocationResponse(BaseModel):
+    """库位响应 (不含 children, 避免递归序列化)。"""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    warehouse_id: UUID
+    code: str
+    name: str
+    level: str
+    parent_id: UUID | None = None
+    is_active: bool
+    sort_order: int
+    capacity: int | None = None
+    tenant_id: UUID
+
+
+class WarehouseResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    code: str
+    name: str
+    address: str | None = None
+    manager_id: UUID | None = None
+    is_active: bool
+    remark: str | None = None
+    sort_order: int
+    tenant_id: UUID
+
+
+class WarehouseDetailResponse(WarehouseResponse):
+    """带顶层 locations 的仓库详情。"""
+    locations: list[LocationResponse] = []
+
+
+# =========================================================================== #
+# 库位 (Location)
+# =========================================================================== #
+
+
+class LocationCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    warehouse_id: UUID
+    code: str = Field(..., min_length=1, max_length=32)
+    name: str = Field(..., min_length=1, max_length=64)
+    level: str = Field(..., pattern="^(zone|aisle|bin)$")
+    parent_id: UUID | None = None
+    sort_order: int = 0
+    capacity: int | None = None
+
+
+class LocationUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    name: str | None = Field(None, min_length=1, max_length=64)
+    is_active: bool | None = None
+    sort_order: int | None = None
+    capacity: int | None = None
+
+
+class LocationTreeNode(BaseModel):
+    """递归树节点, 用于 GET /scm/warehouses/{id}/location-tree。"""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    code: str
+    name: str
+    level: str
+    parent_id: UUID | None = None
+    is_active: bool
+    sort_order: int
+    capacity: int | None = None
+    children: list[LocationTreeNode] = []
+
+
+class WarehouseListParams(BaseModel):
+    is_active: bool | None = None
+    search: str | None = None
+    page: int = Field(1, ge=1)
+    size: int = Field(20, ge=1, le=200)

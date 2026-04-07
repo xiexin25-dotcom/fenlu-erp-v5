@@ -11,6 +11,10 @@ from packages.shared.db import get_session
 
 from .schemas import (
     BOMPurchaseResponse,
+    LocationCreate,
+    LocationResponse,
+    LocationTreeNode,
+    LocationUpdate,
     POCreate,
     POResponse,
     PRCreate,
@@ -31,10 +35,16 @@ from .schemas import (
     SupplierUpdate,
     TierChangeRequest,
     TierChangeResponse,
+    WarehouseCreate,
+    WarehouseDetailResponse,
+    WarehouseListParams,
+    WarehouseResponse,
+    WarehouseUpdate,
 )
 from packages.shared.contracts.supply_chain import PurchaseRequestFromBOM
 from packages.supply_chain.services.purchase_service import PurchaseService
 from packages.supply_chain.services.supplier_service import SupplierService
+from packages.supply_chain.services.warehouse_service import WarehouseService
 
 router = APIRouter(prefix="/scm", tags=["supply-chain"])
 
@@ -450,3 +460,144 @@ async def purchase_from_bom(
         purchase_requests=[PRResponse.model_validate(pr) for pr in prs],
         unmapped_products=unmapped,
     )
+
+
+# =========================================================================== #
+# Warehouse
+# =========================================================================== #
+
+
+@router.post("/warehouses", response_model=WarehouseResponse, status_code=201)
+async def create_warehouse(
+    body: WarehouseCreate,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> WarehouseResponse:
+    svc = WarehouseService(session)
+    wh = await svc.create_warehouse(tenant_id, body)
+    return WarehouseResponse.model_validate(wh)
+
+
+@router.get("/warehouses", response_model=dict)
+async def list_warehouses(
+    tenant_id: UUID = Depends(_tenant_id),
+    is_active: bool | None = None,
+    search: str | None = None,
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=200),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    params = WarehouseListParams(
+        is_active=is_active, search=search, page=page, size=size,
+    )
+    svc = WarehouseService(session)
+    items, total = await svc.list_warehouses(tenant_id, params)
+    return {
+        "items": [WarehouseResponse.model_validate(w) for w in items],
+        "total": total,
+        "page": page,
+        "size": size,
+    }
+
+
+@router.get("/warehouses/{wh_id}", response_model=WarehouseDetailResponse)
+async def get_warehouse(
+    wh_id: UUID,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> WarehouseDetailResponse:
+    svc = WarehouseService(session)
+    wh = await svc.get_warehouse(tenant_id, wh_id)
+    if wh is None:
+        raise HTTPException(status_code=404, detail="Warehouse not found")
+    resp = WarehouseDetailResponse.model_validate(wh)
+    resp.locations = [LocationResponse.model_validate(l) for l in wh.locations]
+    return resp
+
+
+@router.patch("/warehouses/{wh_id}", response_model=WarehouseResponse)
+async def update_warehouse(
+    wh_id: UUID,
+    body: WarehouseUpdate,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> WarehouseResponse:
+    svc = WarehouseService(session)
+    wh = await svc.update_warehouse(tenant_id, wh_id, body)
+    if wh is None:
+        raise HTTPException(status_code=404, detail="Warehouse not found")
+    return WarehouseResponse.model_validate(wh)
+
+
+@router.get("/warehouses/{wh_id}/location-tree", response_model=list[LocationTreeNode])
+async def get_location_tree(
+    wh_id: UUID,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> list[LocationTreeNode]:
+    """返回仓库完整库位树 (zone → aisle → bin)。"""
+    svc = WarehouseService(session)
+    wh = await svc.get_warehouse(tenant_id, wh_id)
+    if wh is None:
+        raise HTTPException(status_code=404, detail="Warehouse not found")
+    tree = await svc.get_location_tree(tenant_id, wh_id)
+    return [LocationTreeNode.model_validate(n) for n in tree]
+
+
+# =========================================================================== #
+# Location
+# =========================================================================== #
+
+
+@router.post("/locations", response_model=LocationResponse, status_code=201)
+async def create_location(
+    body: LocationCreate,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> LocationResponse:
+    svc = WarehouseService(session)
+    try:
+        loc = await svc.create_location(tenant_id, body)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return LocationResponse.model_validate(loc)
+
+
+@router.get("/locations/{loc_id}", response_model=LocationResponse)
+async def get_location(
+    loc_id: UUID,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> LocationResponse:
+    svc = WarehouseService(session)
+    loc = await svc.get_location(tenant_id, loc_id)
+    if loc is None:
+        raise HTTPException(status_code=404, detail="Location not found")
+    return LocationResponse.model_validate(loc)
+
+
+@router.get("/locations", response_model=list[LocationResponse])
+async def list_locations(
+    warehouse_id: UUID = Query(...),
+    level: str | None = None,
+    parent_id: UUID | None = None,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> list[LocationResponse]:
+    svc = WarehouseService(session)
+    locs = await svc.list_locations(tenant_id, warehouse_id, level=level, parent_id=parent_id)
+    return [LocationResponse.model_validate(l) for l in locs]
+
+
+@router.patch("/locations/{loc_id}", response_model=LocationResponse)
+async def update_location(
+    loc_id: UUID,
+    body: LocationUpdate,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> LocationResponse:
+    svc = WarehouseService(session)
+    loc = await svc.update_location(tenant_id, loc_id, body)
+    if loc is None:
+        raise HTTPException(status_code=404, detail="Location not found")
+    return LocationResponse.model_validate(loc)
