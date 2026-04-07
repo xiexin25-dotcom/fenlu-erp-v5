@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ClipboardCheck } from 'lucide-react';
 import { mfgApi, api, plmApi, type QCInspection } from '@/lib/api';
@@ -7,33 +7,64 @@ import PageHeader from '@/components/PageHeader';
 import StatusBadge from '@/components/StatusBadge';
 import FormDialog, { FormField, FormInput, FormSelect } from '@/components/FormDialog';
 
-const columns: Column<QCInspection>[] = [
-  { key: 'inspection_no', header: '检验单号', className: 'font-mono', render: r => {
-    const rec = r as unknown as Record<string, unknown>;
-    return (rec.inspection_no as string) || '—';
-  }},
-  { key: 'type', header: '类型', render: r => {
-    const rec = r as unknown as Record<string, unknown>;
-    return (rec.type as string) || '—';
-  }},
-  { key: 'work_order_id', header: '工单', render: r => r.work_order_id?.slice(0, 8), className: 'font-mono' },
-  { key: 'product_id', header: '产品', render: r => {
-    const rec = r as unknown as Record<string, unknown>;
-    return ((rec.product_id as string) || '').slice(0, 8);
-  }, className: 'font-mono' },
-  { key: 'inspector_id', header: '检验员', render: r => {
-    const rec = r as unknown as Record<string, unknown>;
-    return ((rec.inspector_id as string) || '').slice(0, 8);
-  }, className: 'font-mono' },
-  { key: 'sample_size', header: '抽样数', className: 'text-right' },
-  { key: 'defect_count', header: '缺陷数', className: 'text-right', render: r => <span className={r.defect_count > 0 ? 'text-red-600 font-medium' : ''}>{r.defect_count}</span> },
-  { key: 'result', header: '结果', render: r => <StatusBadge status={r.result} /> },
-];
+const typeLabels: Record<string, string> = {
+  iqc: '来料检',
+  ipqc: '制程检',
+  oqc: '出货检',
+  fai: '首件检',
+};
 
 export default function QCInspectionList() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['qc-inspections'], queryFn: () => mfgApi.listInspections() });
   const { data: prodData } = useQuery({ queryKey: ['products-all'], queryFn: () => plmApi.listProducts(0, 100) });
+  const { data: empData } = useQuery({ queryKey: ['employees-all'], queryFn: () => api.get<Array<{ id: string; name: string; employee_no: string }>>('/mgmt/hr/employees') });
+  const { data: woData } = useQuery({ queryKey: ['work-orders-all'], queryFn: () => mfgApi.listWorkOrders() });
+
+  const prodMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const p of prodData?.items || []) m[p.id] = `${p.name} (${p.code})`;
+    return m;
+  }, [prodData]);
+
+  const empMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    const empItems = Array.isArray(empData) ? empData : (empData as unknown as { items?: Array<{ id: string; name: string; employee_no: string }> })?.items || [];
+    for (const e of empItems) m[e.id] = `${e.name} (${e.employee_no})`;
+    return m;
+  }, [empData]);
+
+  const woMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const w of woData || []) m[w.id] = w.order_number || w.id.slice(0, 8);
+    return m;
+  }, [woData]);
+
+  const columns: Column<QCInspection>[] = [
+    { key: 'inspection_no', header: '检验单号', className: 'font-mono', render: r => {
+      const rec = r as unknown as Record<string, unknown>;
+      return (rec.inspection_no as string) || '—';
+    }},
+    { key: 'type', header: '类型', render: r => {
+      const rec = r as unknown as Record<string, unknown>;
+      const t = (rec.type as string) || '';
+      return typeLabels[t] || t || '—';
+    }},
+    { key: 'work_order_id', header: '工单', render: r => woMap[r.work_order_id] || r.work_order_id?.slice(0, 8), className: 'font-mono' },
+    { key: 'product_id', header: '产品', render: r => {
+      const rec = r as unknown as Record<string, unknown>;
+      const pid = rec.product_id as string;
+      return prodMap[pid] || (pid || '').slice(0, 8);
+    }},
+    { key: 'inspector_id', header: '检验员', render: r => {
+      const rec = r as unknown as Record<string, unknown>;
+      const iid = rec.inspector_id as string;
+      return empMap[iid] || (iid || '').slice(0, 8);
+    }},
+    { key: 'sample_size', header: '抽样数', className: 'text-right' },
+    { key: 'defect_count', header: '缺陷数', className: 'text-right', render: r => <span className={r.defect_count > 0 ? 'text-red-600 font-medium' : ''}>{r.defect_count}</span> },
+    { key: 'result', header: '结果', render: r => <StatusBadge status={r.result} /> },
+  ];
 
   const [open, setOpen] = useState(false);
   const [inspectionNo, setInspectionNo] = useState('');

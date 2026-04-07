@@ -10,10 +10,7 @@ import FormDialog, { FormField, FormInput } from '@/components/FormDialog';
 const columns: Column<Equipment>[] = [
   { key: 'code', header: '设备编码', className: 'font-mono' },
   { key: 'name', header: '设备名称' },
-  { key: 'workshop_id', header: '车间', render: r => {
-    const rec = r as unknown as Record<string, unknown>;
-    return ((rec.workshop_id as string) || '').slice(0, 8);
-  }, className: 'font-mono' },
+  { key: 'workshop_id', header: '车间', render: () => '默认车间' },
   { key: 'status', header: '状态', render: r => <StatusBadge status={r.status} /> },
   { key: 'is_special_equipment', header: '特种设备', render: r => {
     const rec = r as unknown as Record<string, unknown>;

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ShoppingCart } from 'lucide-react';
 import { scmApi, type PurchaseOrder } from '@/lib/api';
@@ -12,27 +12,34 @@ function fmt(v: unknown): string {
   return (n || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-const columns: Column<PurchaseOrder>[] = [
-  { key: 'order_no', header: '采购单号', className: 'font-mono', render: r => {
-    const rec = r as unknown as Record<string, unknown>;
-    return (rec.order_no as string) || '—';
-  }},
-  { key: 'supplier_id', header: '供应商', render: r => {
-    const rec = r as unknown as Record<string, unknown>;
-    return ((rec.supplier_id as string) || '').slice(0, 8);
-  }, className: 'font-mono' },
-  { key: 'total_amount', header: '金额', className: 'text-right', render: r => fmt(r.total_amount) },
-  { key: 'currency', header: '币种', render: r => {
-    const rec = r as unknown as Record<string, unknown>;
-    return (rec.currency as string) || 'CNY';
-  }},
-  { key: 'status', header: '状态', render: r => <StatusBadge status={r.status} /> },
-];
-
 export default function PurchaseOrderList() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['purchase-orders'], queryFn: scmApi.listPOs });
   const { data: suppliers } = useQuery({ queryKey: ['suppliers-all'], queryFn: () => scmApi.listSuppliers() });
+
+  const supplierMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const s of suppliers || []) m[s.id] = `${s.name} (${s.code})`;
+    return m;
+  }, [suppliers]);
+
+  const columns: Column<PurchaseOrder>[] = [
+    { key: 'order_no', header: '采购单号', className: 'font-mono', render: r => {
+      const rec = r as unknown as Record<string, unknown>;
+      return (rec.order_no as string) || '—';
+    }},
+    { key: 'supplier_id', header: '供应商', render: r => {
+      const rec = r as unknown as Record<string, unknown>;
+      const sid = rec.supplier_id as string;
+      return supplierMap[sid] || (sid || '').slice(0, 8);
+    }},
+    { key: 'total_amount', header: '金额', className: 'text-right', render: r => fmt(r.total_amount) },
+    { key: 'currency', header: '币种', render: r => {
+      const rec = r as unknown as Record<string, unknown>;
+      return (rec.currency as string) || 'CNY';
+    }},
+    { key: 'status', header: '状态', render: r => <StatusBadge status={r.status} /> },
+  ];
 
   const [open, setOpen] = useState(false);
   const [orderNo, setOrderNo] = useState('');

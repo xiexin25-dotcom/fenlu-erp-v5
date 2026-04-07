@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ClipboardList } from 'lucide-react';
 import { scmApi, type Stocktake } from '@/lib/api';
@@ -7,24 +7,30 @@ import PageHeader from '@/components/PageHeader';
 import StatusBadge from '@/components/StatusBadge';
 import FormDialog, { FormField, FormInput, FormSelect } from '@/components/FormDialog';
 
-const columns: Column<Stocktake>[] = [
-  { key: 'stocktake_no', header: '盘点单号', className: 'font-mono', render: r => {
-    const rec = r as unknown as Record<string, unknown>;
-    return (rec.stocktake_no as string) || '—';
-  }},
-  { key: 'warehouse_id', header: '仓库', render: r => (r.warehouse_id || '').slice(0, 8), className: 'font-mono' },
-  { key: 'status', header: '状态', render: r => <StatusBadge status={r.status} /> },
-  { key: 'stocktake_date', header: '盘点日期', render: r => {
-    const rec = r as unknown as Record<string, unknown>;
-    const val = rec.stocktake_date as string | undefined;
-    return val ? new Date(val).toLocaleDateString('zh-CN') : '—';
-  }},
-];
-
 export default function StocktakeList() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['stocktakes'], queryFn: scmApi.listStocktakes });
   const { data: warehouses } = useQuery({ queryKey: ['warehouses-all'], queryFn: scmApi.listWarehouses });
+
+  const whMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const w of warehouses || []) m[w.id] = w.name || w.code;
+    return m;
+  }, [warehouses]);
+
+  const columns: Column<Stocktake>[] = [
+    { key: 'stocktake_no', header: '盘点单号', className: 'font-mono', render: r => {
+      const rec = r as unknown as Record<string, unknown>;
+      return (rec.stocktake_no as string) || '—';
+    }},
+    { key: 'warehouse_id', header: '仓库', render: r => whMap[r.warehouse_id] || (r.warehouse_id || '').slice(0, 8) },
+    { key: 'status', header: '状态', render: r => <StatusBadge status={r.status} /> },
+    { key: 'stocktake_date', header: '盘点日期', render: r => {
+      const rec = r as unknown as Record<string, unknown>;
+      const val = rec.stocktake_date as string | undefined;
+      return val ? new Date(val).toLocaleDateString('zh-CN') : '—';
+    }},
+  ];
 
   const [open, setOpen] = useState(false);
   const [stocktakeNo, setStocktakeNo] = useState('');

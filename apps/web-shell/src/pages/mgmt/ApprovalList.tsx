@@ -53,12 +53,23 @@ export default function ApprovalList() {
     queryKey: ['approval-defs'],
     queryFn: () => api.get<ApprovalDef[]>('/mgmt/approval/definitions'),
   });
+  const { data: empData } = useQuery({
+    queryKey: ['employees-all'],
+    queryFn: () => api.get<Array<{ id: string; name: string; employee_no: string }>>('/mgmt/hr/employees'),
+  });
 
   const defMap = useMemo(() => {
     const m: Record<string, string> = {};
     for (const d of defs || []) m[d.business_type] = d.name;
     return m;
   }, [defs]);
+
+  const empMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    const empItems = Array.isArray(empData) ? empData : (empData as unknown as { items?: Array<{ id: string; name: string; employee_no: string }> })?.items || [];
+    for (const e of empItems) m[e.id] = `${e.name} (${e.employee_no})`;
+    return m;
+  }, [empData]);
 
   const handleAction = async (id: string, action: string) => {
     await api.post(`/mgmt/approval/${id}/action`, { action, comment: action === 'approve' ? '同意' : '不同意' });
@@ -85,8 +96,9 @@ export default function ApprovalList() {
     }},
     { key: 'initiator', header: '发起人', render: r => {
       const rec = r as unknown as Record<string, string>;
-      return (rec.initiator_id || '').slice(0, 8);
-    }, className: 'font-mono' },
+      const iid = rec.initiator_id || '';
+      return empMap[iid] || iid.slice(0, 8);
+    }},
     { key: 'status', header: '状态', render: r => <StatusBadge status={r.status} /> },
     { key: 'action', header: '操作', render: r => <ApprovalActions instance={r} onAction={handleAction} /> },
   ];
