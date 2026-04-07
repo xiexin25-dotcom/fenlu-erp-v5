@@ -38,6 +38,7 @@ import EmployeeList from '@/pages/mgmt/EmployeeList';
 import AttendanceList from '@/pages/mgmt/AttendanceList';
 import PayrollList from '@/pages/mgmt/PayrollList';
 import ApprovalList from '@/pages/mgmt/ApprovalList';
+import UserList from '@/pages/mgmt/UserList';
 import KPIPage from '@/pages/mgmt/KPIPage';
 
 const queryClient = new QueryClient({
@@ -106,6 +107,7 @@ export function App() {
               <Route path="mgmt/hr/attendance" element={<AttendanceList />} />
               <Route path="mgmt/hr/payroll" element={<PayrollList />} />
               <Route path="mgmt/kpi" element={<KPIPage />} />
+              <Route path="mgmt/users" element={<UserList />} />
               <Route path="mgmt/approval" element={<ApprovalList />} />
               <Route path="mgmt/approval/list" element={<ApprovalList />} />
               <Route path="*" element={<Navigate to="/" replace />} />

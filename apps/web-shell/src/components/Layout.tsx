@@ -3,7 +3,7 @@ import { type ReactNode } from 'react';
 import { useAuth } from '@/stores/auth';
 import {
   LayoutDashboard, Package, Factory, Truck, BarChart3,
-  Users, FileText, ShieldCheck, LogOut, PanelLeftClose, PanelLeft,
+  Users, FileText, ShieldCheck, LogOut, PanelLeftClose, PanelLeft, UserCog,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -16,6 +16,7 @@ const nav = [
   { to: '/mgmt/hr', icon: Users, label: '人力资源' },
   { to: '/mgmt/kpi', icon: BarChart3, label: 'KPI 看板' },
   { to: '/mgmt/approval', icon: ShieldCheck, label: '审批中心' },
+  { to: '/mgmt/users', icon: UserCog, label: '用户管理' },
 ];
 
 export default function Layout({ children }: { children?: ReactNode }) {
