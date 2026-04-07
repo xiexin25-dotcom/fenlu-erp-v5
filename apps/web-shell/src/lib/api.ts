@@ -77,7 +77,11 @@ export interface ServiceTicket {
 }
 
 export const plmApi = {
-  listProducts: (skip = 0, limit = 20) => api.get<Product[]>(`/plm/products?skip=${skip}&limit=${limit}`),
+  listProducts: async (skip = 0, limit = 20) => {
+    const r = await api.get<{ items: Product[]; total: number } | Product[]>(`/plm/products?skip=${skip}&limit=${limit}`);
+    if (Array.isArray(r)) return { items: r, total: r.length };
+    return r as { items: Product[]; total: number };
+  },
   getProduct: (id: string) => api.get<Product>(`/plm/products/${id}`),
   createProduct: (data: Partial<Product>) => api.post<Product>('/plm/products', data),
   createVersion: (productId: string, data: { description?: string }) =>

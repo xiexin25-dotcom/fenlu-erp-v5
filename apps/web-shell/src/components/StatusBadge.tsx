@@ -45,6 +45,7 @@ const labelMap: Record<string, string> = {
 };
 
 export default function StatusBadge({ status }: { status: string }) {
+  if (!status) return null;
   const s = status.toLowerCase();
   const [bg, fg] = colorMap[s] || ['var(--status-gray)', 'var(--status-gray-fg)'];
   const label = labelMap[s] || status;

@@ -25,10 +25,12 @@ export default function ProductList() {
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ code: '', name: '', category: '', unit: 'pcs' });
 
-  const { data, isLoading } = useQuery({
+  const { data: raw, isLoading } = useQuery({
     queryKey: ['products', page],
     queryFn: () => plmApi.listProducts((page - 1) * 20, 20),
   });
+  const data = raw?.items || [];
+  const total = raw?.total;
 
   return (
     <div className="p-6">
@@ -41,7 +43,8 @@ export default function ProductList() {
       />
       <DataTable<Product>
         columns={columns}
-        data={data || []}
+        data={data}
+        total={total}
         loading={isLoading}
         page={page}
         onPageChange={setPage}
