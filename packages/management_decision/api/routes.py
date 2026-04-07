@@ -1037,4 +1037,18 @@ async def get_kpi_data(
     return [KPIDataPointOut.model_validate(p) for p in points]
 
 
+@bi_router.post(
+    "/rollup",
+    dependencies=[Depends(require_permission("mgmt.kpi", "admin"))],
+)
+async def trigger_rollup(
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, str]:
+    """手动触发全部 roll-up (调试/运维用)。"""
+    from packages.management_decision.services.rollups import run_all_rollups
+
+    return await run_all_rollups(session, tenant_id=user.tenant_id)
+
+
 router.include_router(bi_router)
