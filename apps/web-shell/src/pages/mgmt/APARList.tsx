@@ -34,23 +34,38 @@ export default function APARList() {
     return m;
   }, [customers]);
 
+  const statusLabel = (s: string, bal: unknown) => {
+    const b = money(bal);
+    if (s === 'paid' || b <= 0) return <span className="text-[12px] font-medium" style={{ color: 'var(--status-green-fg)' }}>已结清</span>;
+    if (s === 'partial') return <span className="text-[12px] font-medium" style={{ color: 'var(--status-amber-fg)' }}>部分付款</span>;
+    // Check if overdue
+    return <span className="text-[12px] font-medium" style={{ color: 'var(--status-red-fg)' }}>未付款</span>;
+  };
+
   const apColumns: Column<APRecord>[] = [
     { key: 'supplier_id', header: '供应商', render: r => {
       const rec = r as unknown as Record<string, unknown>;
       const sid = rec.supplier_id as string;
       return supplierMap[sid] || (sid || '').slice(0, 8);
     }},
-    { key: 'total_amount', header: '金额', className: 'text-right', render: r => {
+    { key: 'total_amount', header: '金额 (¥)', className: 'text-right', render: r => {
       const rec = r as unknown as Record<string, unknown>;
       return fmt(rec.total_amount);
     }},
-    { key: 'paid_amount', header: '已付', className: 'text-right', render: r => fmt(r.paid_amount) },
-    { key: 'balance', header: '余额', className: 'text-right', render: r => {
+    { key: 'paid_amount', header: '已付 (¥)', className: 'text-right', render: r => fmt(r.paid_amount) },
+    { key: 'balance', header: '余额 (¥)', className: 'text-right', render: r => {
       const rec = r as unknown as Record<string, unknown>;
-      return fmt(rec.balance);
+      const b = money(rec.balance);
+      return <span style={{ color: b > 0 ? 'var(--status-red-fg)' : 'var(--status-green-fg)', fontWeight: b > 0 ? 600 : 400 }}>{fmt(rec.balance)}</span>;
     }},
-    { key: 'due_date', header: '到期日', render: r => r.due_date?.slice(0, 10) },
-    { key: 'status', header: '状态', render: r => <StatusBadge status={r.status} /> },
+    { key: 'due_date', header: '到期日', render: r => {
+      const d = r.due_date;
+      return d ? d.slice(0, 10) : '—';
+    }},
+    { key: 'status', header: '状态', render: r => {
+      const rec = r as unknown as Record<string, unknown>;
+      return statusLabel(r.status, rec.balance);
+    }},
   ];
 
   const arColumns: Column<ARRecord>[] = [
@@ -59,17 +74,24 @@ export default function APARList() {
       const cid = rec.customer_id as string;
       return customerMap[cid] || (cid || '').slice(0, 8);
     }},
-    { key: 'total_amount', header: '金额', className: 'text-right', render: r => {
+    { key: 'total_amount', header: '金额 (¥)', className: 'text-right', render: r => {
       const rec = r as unknown as Record<string, unknown>;
       return fmt(rec.total_amount);
     }},
-    { key: 'received_amount', header: '已收', className: 'text-right', render: r => fmt(r.received_amount) },
-    { key: 'balance', header: '余额', className: 'text-right', render: r => {
+    { key: 'received_amount', header: '已收 (¥)', className: 'text-right', render: r => fmt(r.received_amount) },
+    { key: 'balance', header: '余额 (¥)', className: 'text-right', render: r => {
       const rec = r as unknown as Record<string, unknown>;
-      return fmt(rec.balance);
+      const b = money(rec.balance);
+      return <span style={{ color: b > 0 ? 'var(--status-red-fg)' : 'var(--status-green-fg)', fontWeight: b > 0 ? 600 : 400 }}>{fmt(rec.balance)}</span>;
     }},
-    { key: 'due_date', header: '到期日', render: r => r.due_date?.slice(0, 10) },
-    { key: 'status', header: '状态', render: r => <StatusBadge status={r.status} /> },
+    { key: 'due_date', header: '到期日', render: r => {
+      const d = r.due_date;
+      return d ? d.slice(0, 10) : '—';
+    }},
+    { key: 'status', header: '状态', render: r => {
+      const rec = r as unknown as Record<string, unknown>;
+      return statusLabel(r.status, rec.balance);
+    }},
   ];
 
   return (
