@@ -6,10 +6,17 @@ import PageHeader from '@/components/PageHeader';
 import StatusBadge from '@/components/StatusBadge';
 
 const columns: Column<Stocktake>[] = [
-  { key: 'stocktake_number', header: '盘点单号', className: 'font-mono' },
-  { key: 'warehouse_name', header: '仓库', render: r => r.warehouse_name || r.warehouse_id?.slice(0, 8) },
+  { key: 'stocktake_no', header: '盘点单号', className: 'font-mono', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    return (rec.stocktake_no as string) || '—';
+  }},
+  { key: 'warehouse_id', header: '仓库', render: r => (r.warehouse_id || '').slice(0, 8), className: 'font-mono' },
   { key: 'status', header: '状态', render: r => <StatusBadge status={r.status} /> },
-  { key: 'created_at', header: '创建时间', render: r => new Date(r.created_at).toLocaleDateString('zh-CN') },
+  { key: 'stocktake_date', header: '盘点日期', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    const val = rec.stocktake_date as string | undefined;
+    return val ? new Date(val).toLocaleDateString('zh-CN') : '—';
+  }},
 ];
 
 export default function StocktakeList() {

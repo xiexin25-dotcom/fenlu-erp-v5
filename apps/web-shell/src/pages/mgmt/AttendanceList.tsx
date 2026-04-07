@@ -6,11 +6,31 @@ import PageHeader from '@/components/PageHeader';
 import StatusBadge from '@/components/StatusBadge';
 
 const columns: Column<Attendance>[] = [
-  { key: 'employee_name', header: '员工', render: r => r.employee_name || r.employee_id?.slice(0, 8) },
-  { key: 'date', header: '日期', render: r => r.date?.slice(0, 10) },
-  { key: 'check_in', header: '签到', render: r => r.check_in?.slice(11, 16) || '—' },
-  { key: 'check_out', header: '签退', render: r => r.check_out?.slice(11, 16) || '—' },
-  { key: 'overtime_hours', header: '加班(h)', className: 'text-right', render: r => r.overtime_hours > 0 ? <span className="text-amber-600">{r.overtime_hours}</span> : '0' },
+  { key: 'employee_id', header: '员工', render: r => (r.employee_id || '').slice(0, 8), className: 'font-mono' },
+  { key: 'work_date', header: '日期', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    const val = rec.work_date as string | undefined;
+    return val ? val.slice(0, 10) : '—';
+  }},
+  { key: 'clock_in', header: '签到', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    const val = rec.clock_in as string | undefined;
+    return val ? val.slice(11, 16) : '—';
+  }},
+  { key: 'clock_out', header: '签退', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    const val = rec.clock_out as string | undefined;
+    return val ? val.slice(11, 16) : '—';
+  }},
+  { key: 'work_hours', header: '工时(h)', className: 'text-right', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    return (rec.work_hours as number) ?? '—';
+  }},
+  { key: 'overtime_hours', header: '加班(h)', className: 'text-right', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    const val = rec.overtime_hours as number | undefined;
+    return val && val > 0 ? <span className="text-amber-600">{val}</span> : '0';
+  }},
   { key: 'status', header: '状态', render: r => <StatusBadge status={r.status} /> },
 ];
 

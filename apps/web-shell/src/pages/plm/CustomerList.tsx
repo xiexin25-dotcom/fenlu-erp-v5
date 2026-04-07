@@ -10,9 +10,20 @@ const columns: Column<Customer>[] = [
   { key: 'code', header: '客户编码', className: 'font-mono' },
   { key: 'name', header: '客户名称' },
   { key: 'rating', header: '评级', render: r => <span className={`px-2 py-0.5 rounded text-xs font-medium ${r.rating === 'A' ? 'bg-green-100 text-green-700' : r.rating === 'B' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>{r.rating}级</span> },
-  { key: 'industry', header: '行业' },
-  { key: 'contact_name', header: '联系人' },
-  { key: 'contact_phone', header: '电话' },
+  { key: 'is_online', header: '线上', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    return <span className={`text-xs ${rec.is_online ? 'text-green-600' : 'text-gray-400'}`}>{rec.is_online ? '是' : '否'}</span>;
+  }},
+  { key: 'contact_name', header: '联系人', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    const contacts = rec.contacts as Array<{ name?: string }> | undefined;
+    return contacts?.[0]?.name || '—';
+  }},
+  { key: 'contact_phone', header: '电话', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    const contacts = rec.contacts as Array<{ phone?: string }> | undefined;
+    return contacts?.[0]?.phone || '—';
+  }},
 ];
 
 export default function CustomerList() {

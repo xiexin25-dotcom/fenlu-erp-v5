@@ -1,18 +1,45 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle } from 'lucide-react';
 import { mfgApi, type SafetyHazard } from '@/lib/api';
 import DataTable, { type Column } from '@/components/DataTable';
 import PageHeader from '@/components/PageHeader';
 import StatusBadge from '@/components/StatusBadge';
 
+const levelLabels: Record<string, { label: string; cls: string }> = {
+  critical: { label: '严重', cls: 'bg-red-100 text-red-700' },
+  major: { label: '重大', cls: 'bg-orange-100 text-orange-700' },
+  moderate: { label: '中等', cls: 'bg-yellow-100 text-yellow-700' },
+  minor: { label: '轻微', cls: 'bg-gray-100 text-gray-600' },
+};
+
 const columns: Column<SafetyHazard>[] = [
-  { key: 'title', header: '隐患标题' },
-  { key: 'severity', header: '严重性', render: r => <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${r.severity === 'critical' ? 'bg-red-100 text-red-700' : r.severity === 'major' ? 'bg-orange-100 text-orange-700' : 'bg-yellow-100 text-yellow-700'}`}>{r.severity === 'critical' ? '严重' : r.severity === 'major' ? '重大' : '一般'}</span> },
-  { key: 'location', header: '位置' },
-  { key: 'reporter', header: '报告人' },
+  { key: 'hazard_no', header: '隐患编号', className: 'font-mono', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    return (rec.hazard_no as string) || '—';
+  }},
+  { key: 'level', header: '等级', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    const level = (rec.level as string) || '';
+    const info = levelLabels[level] || { label: level, cls: 'bg-gray-100 text-gray-600' };
+    return <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${info.cls}`}>{info.label}</span>;
+  }},
+  { key: 'location', header: '位置', render: r => r.location || '—' },
+  { key: 'reported_by', header: '报告人', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    return (rec.reported_by as string) || '—';
+  }},
   { key: 'status', header: '状态', render: r => <StatusBadge status={r.status} /> },
-  { key: 'created_at', header: '报告时间', render: r => new Date(r.created_at).toLocaleDateString('zh-CN') },
+  { key: 'rectified_at', header: '整改时间', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    const val = rec.rectified_at as string | undefined;
+    return val ? new Date(val).toLocaleDateString('zh-CN') : '—';
+  }},
+  { key: 'closed_at', header: '关闭时间', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    const val = rec.closed_at as string | undefined;
+    return val ? new Date(val).toLocaleDateString('zh-CN') : '—';
+  }},
 ];
 
 export default function SafetyHazardList() {

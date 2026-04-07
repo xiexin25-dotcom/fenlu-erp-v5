@@ -6,13 +6,26 @@ import PageHeader from '@/components/PageHeader';
 import StatusBadge from '@/components/StatusBadge';
 
 const columns: Column<QCInspection>[] = [
+  { key: 'inspection_no', header: '检验单号', className: 'font-mono', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    return (rec.inspection_no as string) || '—';
+  }},
+  { key: 'type', header: '类型', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    return (rec.type as string) || '—';
+  }},
   { key: 'work_order_id', header: '工单', render: r => r.work_order_id?.slice(0, 8), className: 'font-mono' },
-  { key: 'inspector', header: '检验员' },
+  { key: 'product_id', header: '产品', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    return ((rec.product_id as string) || '').slice(0, 8);
+  }, className: 'font-mono' },
+  { key: 'inspector_id', header: '检验员', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    return ((rec.inspector_id as string) || '').slice(0, 8);
+  }, className: 'font-mono' },
   { key: 'sample_size', header: '抽样数', className: 'text-right' },
   { key: 'defect_count', header: '缺陷数', className: 'text-right', render: r => <span className={r.defect_count > 0 ? 'text-red-600 font-medium' : ''}>{r.defect_count}</span> },
   { key: 'result', header: '结果', render: r => <StatusBadge status={r.result} /> },
-  { key: 'notes', header: '备注', className: 'max-w-48 truncate' },
-  { key: 'created_at', header: '时间', render: r => new Date(r.created_at).toLocaleString('zh-CN', { dateStyle: 'short', timeStyle: 'short' }) },
 ];
 
 export default function QCInspectionList() {

@@ -10,16 +10,21 @@ import FormDialog, { FormField, FormInput } from '@/components/FormDialog';
 const columns: Column<Equipment>[] = [
   { key: 'code', header: '设备编码', className: 'font-mono' },
   { key: 'name', header: '设备名称' },
-  { key: 'equipment_type', header: '类型' },
-  { key: 'location', header: '位置' },
+  { key: 'workshop_id', header: '车间', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    return ((rec.workshop_id as string) || '').slice(0, 8);
+  }, className: 'font-mono' },
   { key: 'status', header: '状态', render: r => <StatusBadge status={r.status} /> },
-  { key: 'last_maintenance', header: '上次保养', render: r => r.last_maintenance ? new Date(r.last_maintenance).toLocaleDateString('zh-CN') : '—' },
+  { key: 'is_special_equipment', header: '特种设备', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    return rec.is_special_equipment ? <span className="text-orange-600 text-xs font-medium">是</span> : <span className="text-gray-400 text-xs">否</span>;
+  }},
 ];
 
 export default function EquipmentList() {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ code: '', name: '', equipment_type: '', location: '' });
+  const [form, setForm] = useState({ code: '', name: '' });
   const { data, isLoading } = useQuery({ queryKey: ['equipment'], queryFn: mfgApi.listEquipment });
 
   return (
@@ -29,8 +34,6 @@ export default function EquipmentList() {
       <FormDialog open={showCreate} onClose={() => setShowCreate(false)} title="新建设备" onSubmit={async () => { await mfgApi.createEquipment(form); qc.invalidateQueries({ queryKey: ['equipment'] }); }}>
         <FormField label="设备编码"><FormInput value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} required /></FormField>
         <FormField label="设备名称"><FormInput value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required /></FormField>
-        <FormField label="类型"><FormInput value={form.equipment_type} onChange={e => setForm(f => ({ ...f, equipment_type: e.target.value }))} /></FormField>
-        <FormField label="位置"><FormInput value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} /></FormField>
       </FormDialog>
     </div>
   );

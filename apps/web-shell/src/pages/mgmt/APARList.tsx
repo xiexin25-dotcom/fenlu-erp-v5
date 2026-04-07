@@ -7,17 +7,37 @@ import PageHeader from '@/components/PageHeader';
 import StatusBadge from '@/components/StatusBadge';
 
 const apColumns: Column<APRecord>[] = [
-  { key: 'supplier_name', header: '供应商' },
-  { key: 'amount', header: '金额', className: 'text-right', render: r => r.amount?.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) },
+  { key: 'supplier_id', header: '供应商', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    return ((rec.supplier_id as string) || '').slice(0, 8);
+  }, className: 'font-mono' },
+  { key: 'total_amount', header: '金额', className: 'text-right', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    return ((rec.total_amount as number) ?? 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 });
+  }},
   { key: 'paid_amount', header: '已付', className: 'text-right', render: r => r.paid_amount?.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) },
+  { key: 'balance', header: '余额', className: 'text-right', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    return ((rec.balance as number) ?? 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 });
+  }},
   { key: 'due_date', header: '到期日', render: r => r.due_date?.slice(0, 10) },
   { key: 'status', header: '状态', render: r => <StatusBadge status={r.status} /> },
 ];
 
 const arColumns: Column<ARRecord>[] = [
-  { key: 'customer_name', header: '客户' },
-  { key: 'amount', header: '金额', className: 'text-right', render: r => r.amount?.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) },
+  { key: 'customer_id', header: '客户', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    return ((rec.customer_id as string) || '').slice(0, 8);
+  }, className: 'font-mono' },
+  { key: 'total_amount', header: '金额', className: 'text-right', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    return ((rec.total_amount as number) ?? 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 });
+  }},
   { key: 'received_amount', header: '已收', className: 'text-right', render: r => r.received_amount?.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) },
+  { key: 'balance', header: '余额', className: 'text-right', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    return ((rec.balance as number) ?? 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 });
+  }},
   { key: 'due_date', header: '到期日', render: r => r.due_date?.slice(0, 10) },
   { key: 'status', header: '状态', render: r => <StatusBadge status={r.status} /> },
 ];

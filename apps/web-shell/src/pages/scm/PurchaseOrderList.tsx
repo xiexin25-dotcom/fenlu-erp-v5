@@ -6,11 +6,20 @@ import PageHeader from '@/components/PageHeader';
 import StatusBadge from '@/components/StatusBadge';
 
 const columns: Column<PurchaseOrder>[] = [
-  { key: 'po_number', header: '采购单号', className: 'font-mono' },
-  { key: 'supplier_name', header: '供应商', render: r => r.supplier_name || r.supplier_id?.slice(0, 8) },
+  { key: 'order_no', header: '采购单号', className: 'font-mono', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    return (rec.order_no as string) || '—';
+  }},
+  { key: 'supplier_id', header: '供应商', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    return ((rec.supplier_id as string) || '').slice(0, 8);
+  }, className: 'font-mono' },
   { key: 'total_amount', header: '金额', className: 'text-right', render: r => r.total_amount?.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) },
+  { key: 'currency', header: '币种', render: r => {
+    const rec = r as unknown as Record<string, unknown>;
+    return (rec.currency as string) || 'CNY';
+  }},
   { key: 'status', header: '状态', render: r => <StatusBadge status={r.status} /> },
-  { key: 'created_at', header: '创建时间', render: r => new Date(r.created_at).toLocaleDateString('zh-CN') },
 ];
 
 export default function PurchaseOrderList() {
