@@ -59,10 +59,13 @@ export default function AuditLogList() {
     },
     { key: 'resource', header: '模块', render: r => resourceLabels[r.resource || ''] || r.resource || '—' },
     { key: 'action', header: '操作', render: r => actionLabels[r.action || ''] || r.action || '—' },
-    { key: 'status_code', header: '状态', render: r =>
-      <span className="text-[11px] font-mono" style={{ color: r.status_code < 400 ? 'var(--status-green-fg)' : 'var(--status-red-fg)' }}>{r.status_code}</span>
+    { key: 'detail', header: '详情', render: r => r.detail
+      ? <span className="text-[11px]" style={{ color: 'var(--fg-secondary)' }}>{r.detail}</span>
+      : <span style={{ color: 'var(--fg-tertiary)' }}>—</span>
     },
-    { key: 'ip', header: 'IP', render: r => r.ip_address || '—', className: 'font-mono text-[11px]' },
+    { key: 'status_code', header: '结果', render: r =>
+      <span className="text-[11px] font-mono" style={{ color: r.status_code < 400 ? 'var(--status-green-fg)' : 'var(--status-red-fg)' }}>{r.status_code < 400 ? '成功' : '失败'}</span>
+    },
   ];
 
   return (
