@@ -5,8 +5,9 @@ Management Decision · Pydantic schemas (request / response)
 
 from __future__ import annotations
 
-from datetime import date, time
+from datetime import date, datetime, time
 from decimal import Decimal
+from typing import Any
 from uuid import UUID
 
 from pydantic import Field, computed_field, model_validator
@@ -282,3 +283,76 @@ class AttendanceImportResult(BaseSchema):
     imported: int
     skipped: int
     errors: list[str]
+
+
+# --------------------------------------------------------------------------- #
+# Approval Definition (审批模板)
+# --------------------------------------------------------------------------- #
+
+
+class ApprovalStepConfig(BaseSchema):
+    """审批模板中的步骤配置。"""
+
+    step_no: int = Field(..., ge=1)
+    name: str = Field(..., max_length=128)
+    approver_id: UUID
+
+
+class ApprovalDefinitionCreate(BaseSchema):
+    business_type: str = Field(..., max_length=64)
+    name: str = Field(..., max_length=128)
+    steps_config: list[ApprovalStepConfig] = Field(..., min_length=1)
+    description: str | None = None
+
+
+class ApprovalDefinitionOut(BaseSchema):
+    id: UUID
+    business_type: str
+    name: str
+    steps_config: list[dict[str, Any]]
+    is_active: bool
+    description: str | None
+
+
+# --------------------------------------------------------------------------- #
+# Approval Instance + Step (审批实例)
+# --------------------------------------------------------------------------- #
+
+
+class ApprovalSubmit(BaseSchema):
+    """发起审批 — 匹配 contracts/management.py ApprovalRequest。"""
+
+    business_type: str = Field(..., max_length=64)
+    business_id: UUID
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class ApprovalActionRequest(BaseSchema):
+    """审批动作 (approve / reject / withdraw)。"""
+
+    action: str = Field(..., description="approve / reject / withdraw")
+    comment: str | None = None
+
+
+class ApprovalStepOut(BaseSchema):
+    id: UUID
+    step_no: int
+    name: str
+    approver_id: UUID
+    status: str
+    action: str | None
+    comment: str | None
+    acted_at: datetime | None
+
+
+class ApprovalInstanceOut(BaseSchema):
+    id: UUID
+    business_type: str
+    business_id: UUID
+    initiator_id: UUID
+    payload: dict[str, Any]
+    status: str
+    current_step: int
+    total_steps: int
+    completed_at: datetime | None
+    steps: list[ApprovalStepOut]

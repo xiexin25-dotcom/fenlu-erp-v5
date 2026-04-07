@@ -18,6 +18,11 @@ from .schemas import (
     APRecordCreate,
     APRecordOut,
     APRecordUpdate,
+    ApprovalActionRequest,
+    ApprovalDefinitionCreate,
+    ApprovalDefinitionOut,
+    ApprovalInstanceOut,
+    ApprovalSubmit,
     ARRecordCreate,
     ARRecordOut,
     ARRecordUpdate,
@@ -660,3 +665,201 @@ async def import_attendance_api(
 
 
 router.include_router(hr_router)
+
+
+# =========================================================================== #
+# Approval (审批流)
+# =========================================================================== #
+
+approval_router = APIRouter(prefix="/approval", tags=["approval"])
+
+
+# --------------------------------------------------------------------------- #
+# Definition CRUD
+# --------------------------------------------------------------------------- #
+
+
+@approval_router.post(
+    "/definitions",
+    response_model=ApprovalDefinitionOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_permission("mgmt.approval_def", "create"))],
+)
+async def create_definition_api(
+    body: ApprovalDefinitionCreate,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> ApprovalDefinitionOut:
+    from packages.management_decision.services.approval import create_definition
+
+    defn = await create_definition(
+        session,
+        tenant_id=user.tenant_id,
+        business_type=body.business_type,
+        name=body.name,
+        steps_config=[s.model_dump(mode="json") for s in body.steps_config],
+        description=body.description,
+        created_by=user.id,
+    )
+    return ApprovalDefinitionOut.model_validate(defn)
+
+
+@approval_router.get(
+    "/definitions",
+    response_model=list[ApprovalDefinitionOut],
+    dependencies=[Depends(require_permission("mgmt.approval_def", "read"))],
+)
+async def list_definitions_api(
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> list[ApprovalDefinitionOut]:
+    from packages.management_decision.services.approval import list_definitions
+
+    defs = await list_definitions(session, tenant_id=user.tenant_id)
+    return [ApprovalDefinitionOut.model_validate(d) for d in defs]
+
+
+@approval_router.get(
+    "/definitions/{definition_id}",
+    response_model=ApprovalDefinitionOut,
+    dependencies=[Depends(require_permission("mgmt.approval_def", "read"))],
+)
+async def get_definition_api(
+    definition_id: UUID,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> ApprovalDefinitionOut:
+    from packages.management_decision.services.approval import get_definition
+
+    defn = await get_definition(
+        session, tenant_id=user.tenant_id, definition_id=definition_id
+    )
+    if defn is None:
+        raise HTTPException(status_code=404, detail="审批定义不存在")
+    return ApprovalDefinitionOut.model_validate(defn)
+
+
+# --------------------------------------------------------------------------- #
+# Submit + Action
+# --------------------------------------------------------------------------- #
+
+
+@approval_router.post(
+    "",
+    response_model=ApprovalInstanceOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_permission("mgmt.approval", "create"))],
+)
+async def submit_approval_api(
+    body: ApprovalSubmit,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> ApprovalInstanceOut:
+    from packages.management_decision.services.approval import submit_approval
+
+    try:
+        instance = await submit_approval(
+            session,
+            tenant_id=user.tenant_id,
+            business_type=body.business_type,
+            business_id=body.business_id,
+            initiator_id=user.id,
+            payload=body.payload,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    return ApprovalInstanceOut.model_validate(instance)
+
+
+@approval_router.post(
+    "/{instance_id}/action",
+    response_model=ApprovalInstanceOut,
+    dependencies=[Depends(require_permission("mgmt.approval", "action"))],
+)
+async def act_on_approval_api(
+    instance_id: UUID,
+    body: ApprovalActionRequest,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> ApprovalInstanceOut:
+    from packages.management_decision.services.approval import act_on_approval
+
+    try:
+        instance = await act_on_approval(
+            session,
+            tenant_id=user.tenant_id,
+            instance_id=instance_id,
+            actor_id=user.id,
+            action=body.action,
+            comment=body.comment,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    return ApprovalInstanceOut.model_validate(instance)
+
+
+# --------------------------------------------------------------------------- #
+# Query
+# --------------------------------------------------------------------------- #
+
+
+@approval_router.get(
+    "",
+    response_model=list[ApprovalInstanceOut],
+    dependencies=[Depends(require_permission("mgmt.approval", "read"))],
+)
+async def list_instances_api(
+    user: CurrentUser,
+    business_type: str | None = Query(None),
+    inst_status: str | None = Query(None, alias="status"),
+    session: AsyncSession = Depends(get_session),
+) -> list[ApprovalInstanceOut]:
+    from packages.management_decision.services.approval import list_instances
+
+    instances = await list_instances(
+        session,
+        tenant_id=user.tenant_id,
+        business_type=business_type,
+        status=inst_status,
+    )
+    return [ApprovalInstanceOut.model_validate(i) for i in instances]
+
+
+@approval_router.get(
+    "/pending",
+    response_model=list[ApprovalInstanceOut],
+    dependencies=[Depends(require_permission("mgmt.approval", "read"))],
+)
+async def list_pending_api(
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> list[ApprovalInstanceOut]:
+    from packages.management_decision.services.approval import list_pending_for_approver
+
+    instances = await list_pending_for_approver(
+        session, tenant_id=user.tenant_id, approver_id=user.id
+    )
+    return [ApprovalInstanceOut.model_validate(i) for i in instances]
+
+
+@approval_router.get(
+    "/{instance_id}",
+    response_model=ApprovalInstanceOut,
+    dependencies=[Depends(require_permission("mgmt.approval", "read"))],
+)
+async def get_instance_api(
+    instance_id: UUID,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> ApprovalInstanceOut:
+    from packages.management_decision.services.approval import get_instance
+
+    instance = await get_instance(
+        session, tenant_id=user.tenant_id, instance_id=instance_id
+    )
+    if instance is None:
+        raise HTTPException(status_code=404, detail="审批实例不存在")
+    return ApprovalInstanceOut.model_validate(instance)
+
+
+router.include_router(approval_router)
