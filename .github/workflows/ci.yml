@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: fenlu
+          POSTGRES_PASSWORD: fenlu_dev
+          POSTGRES_DB: fenlu_v5
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U fenlu"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: uv sync --all-extras
+
+      - name: Lint (ruff)
+        run: uv run ruff check .
+
+      - name: Type check (mypy)
+        run: uv run mypy packages apps
+
+      - name: Init schemas
+        run: |
+          PGPASSWORD=fenlu_dev psql -h localhost -U fenlu -d fenlu_v5 -f infra/init.sql
+
+      - name: Migrate
+        env:
+          DATABASE_URL: postgresql+asyncpg://fenlu:fenlu_dev@localhost:5432/fenlu_v5
+        run: uv run alembic -c infra/alembic.ini upgrade head
+
+      - name: Test
+        env:
+          DATABASE_URL: postgresql+asyncpg://fenlu:fenlu_dev@localhost:5432/fenlu_v5
+          JWT_SECRET: ci-test-secret
+        run: uv run pytest --cov=packages --cov=apps --cov-report=term
+
+  cross-lane-import-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject cross-lane imports
+        run: |
+          # 任何 lane 包不得直接 import 其他 lane 的 SQLAlchemy 模型
+          set -e
+          for lane in product_lifecycle production supply_chain management; do
+            others=$(ls packages/ 2>/dev/null | grep -v "^shared$" | grep -v "^$lane$" || true)
+            for other in $others; do
+              if grep -rn "from packages.$other" "packages/$lane" 2>/dev/null; then
+                echo "::error::$lane imports $other - 跨 lane 直接 import 被禁止"
+                exit 1
+              fi
+            done
+          done
+          echo "✓ no cross-lane imports"
