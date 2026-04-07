@@ -45,6 +45,10 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # 操作日志中间件 — 所有写操作留痕
+    from packages.shared.audit_middleware import AuditLogMiddleware
+    app.add_middleware(AuditLogMiddleware)
+
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(orgs.router)

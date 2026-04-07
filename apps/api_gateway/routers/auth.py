@@ -88,6 +88,21 @@ class RoleCreateRequest(BaseModel):
     permissions: list[list[str]] = []  # [["resource", "action"], ...]
 
 
+class AuditLogOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    user_id: UUID | None
+    username: str | None
+    method: str
+    path: str
+    status_code: int
+    resource: str | None
+    action: str | None
+    detail: str | None
+    ip_address: str | None
+    created_at: str | None
+
+
 # ── Auth ───────────────────────────────────────────────────────────
 
 @router.post("/login", response_model=TokenPair)
@@ -297,3 +312,49 @@ async def create_role(
     session.add(role)
     await session.commit()
     return RoleOut.model_validate(role)
+
+
+# ── Audit Log ────────────────────────────────────────────────────
+
+@router.get("/audit-logs", response_model=list[AuditLogOut])
+async def list_audit_logs(
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=500),
+    resource: str | None = Query(None),
+) -> list[AuditLogOut]:
+    from packages.shared.models.audit_log import AuditLog
+
+    stmt = (
+        select(AuditLog)
+        .where(AuditLog.tenant_id == user.tenant_id)
+        .order_by(AuditLog.created_at.desc())
+        .offset(skip).limit(limit)
+    )
+    if resource:
+        stmt = stmt.where(AuditLog.resource == resource)
+    result = await session.execute(stmt)
+    logs = result.scalars().all()
+
+    # Resolve usernames
+    user_ids = {l.user_id for l in logs if l.user_id}
+    user_map: dict[UUID, str] = {}
+    if user_ids:
+        users_result = await session.execute(
+            select(User).where(User.id.in_(user_ids))
+        )
+        for u in users_result.scalars().all():
+            user_map[u.id] = u.full_name
+
+    out = []
+    for l in logs:
+        out.append(AuditLogOut(
+            id=l.id, user_id=l.user_id,
+            username=user_map.get(l.user_id) if l.user_id else None,
+            method=l.method, path=l.path, status_code=l.status_code,
+            resource=l.resource, action=l.action, detail=l.detail,
+            ip_address=l.ip_address,
+            created_at=l.created_at.isoformat() if l.created_at else None,
+        ))
+    return out
