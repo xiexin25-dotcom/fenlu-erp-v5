@@ -1,0 +1,15 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-shell",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev"],
+      "port": 5173,
+      "cwd": "apps/web-shell",
+      "env": {
+        "PATH": "/opt/homebrew/bin:/usr/local/bin:${env:PATH}"
+      }
+    }
+  ]
+}
