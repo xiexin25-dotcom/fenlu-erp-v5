@@ -37,10 +37,17 @@ from .schemas import (
     ProductOut,
     ProductVersionCreate,
     ProductVersionOut,
+    QuoteCreate,
+    QuoteItemCreate,
+    QuoteItemOut,
+    QuoteOut,
+    QuoteTransition,
     RoutingCreate,
     RoutingOperationCreate,
     RoutingOperationOut,
     RoutingOut,
+    SalesOrderLineOut,
+    SalesOrderOut,
 )
 
 router = APIRouter(prefix="/plm", tags=["product-lifecycle"])
@@ -713,3 +720,116 @@ async def get_funnel(
         period_end=period_end,
     )
     return FunnelOut(**result)
+
+
+# ── Quote ─────────────────────────────────────────────────────────────────── #
+
+
+@router.post("/crm/quotes", response_model=QuoteOut, status_code=201)
+async def create_quote(
+    body: QuoteCreate,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> QuoteOut:
+    from packages.product_lifecycle.services.order_service import (
+        create_quote as _create,
+        get_quote,
+    )
+
+    quote = await _create(
+        session,
+        tenant_id=user.tenant_id,
+        user_id=user.id,
+        customer_id=body.customer_id,
+        quote_no=body.quote_no,
+        currency=body.currency,
+        valid_until=body.valid_until,
+        remark=body.remark,
+    )
+    quote = await get_quote(session, tenant_id=user.tenant_id, quote_id=quote.id)
+    assert quote is not None
+    return QuoteOut.model_validate(quote)
+
+
+@router.get("/crm/quotes/{quote_id}", response_model=QuoteOut)
+async def get_quote_detail(
+    quote_id: UUID,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> QuoteOut:
+    from packages.product_lifecycle.services.order_service import get_quote
+
+    quote = await get_quote(session, tenant_id=user.tenant_id, quote_id=quote_id)
+    if quote is None:
+        raise HTTPException(404, "quote not found")
+    return QuoteOut.model_validate(quote)
+
+
+@router.post("/crm/quotes/{quote_id}/items", response_model=QuoteItemOut, status_code=201)
+async def add_quote_item(
+    quote_id: UUID,
+    body: QuoteItemCreate,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> QuoteItemOut:
+    from packages.product_lifecycle.services.order_service import add_quote_item as _add
+
+    try:
+        item = await _add(
+            session,
+            tenant_id=user.tenant_id,
+            user_id=user.id,
+            quote_id=quote_id,
+            product_id=body.product_id,
+            quantity=body.quantity,
+            uom=body.uom,
+            unit_price=body.unit_price,
+        )
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+    return QuoteItemOut.model_validate(item)
+
+
+@router.post("/crm/quotes/{quote_id}/transition", response_model=QuoteOut)
+async def transition_quote(
+    quote_id: UUID,
+    body: QuoteTransition,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> QuoteOut:
+    from packages.product_lifecycle.services.order_service import (
+        InvalidQuoteTransitionError,
+        transition_quote as _transition,
+    )
+
+    try:
+        quote = await _transition(
+            session,
+            tenant_id=user.tenant_id,
+            user_id=user.id,
+            quote_id=quote_id,
+            target_status=body.target_status,
+            promised_delivery=body.promised_delivery,
+        )
+    except InvalidQuoteTransitionError as e:
+        raise HTTPException(422, str(e)) from e
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+    return QuoteOut.model_validate(quote)
+
+
+# ── SalesOrder ────────────────────────────────────────────────────────────── #
+
+
+@router.get("/crm/orders/{order_id}", response_model=SalesOrderOut)
+async def get_order_detail(
+    order_id: UUID,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> SalesOrderOut:
+    from packages.product_lifecycle.services.order_service import get_sales_order
+
+    order = await get_sales_order(session, tenant_id=user.tenant_id, order_id=order_id)
+    if order is None:
+        raise HTTPException(404, "order not found")
+    return SalesOrderOut.model_validate(order)

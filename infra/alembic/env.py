@@ -24,9 +24,12 @@ from packages.product_lifecycle.models import (  # noqa: F401
     Opportunity,
     Product,
     ProductVersion,
+    Quote,
+    QuoteItem,
     Routing,
     RoutingOperation,
     SalesOrder,
+    SalesOrderLine,
     ServiceTicket,
 )
 from packages.shared.models import (  # noqa: F401

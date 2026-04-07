@@ -8,11 +8,14 @@ from .crm import (
     Opportunity,
     OpportunityStage,
     SalesOrder,
+    SalesOrderLine,
+    SalesOrderStatus,
     ServiceTicket,
 )
 from .customer import Contact, Customer
 from .ecn import ECN, ECNStatus, ECN_TRANSITIONS
 from .product import Product, ProductVersion
+from .quote import QUOTE_TRANSITIONS, Quote, QuoteItem, QuoteStatus
 from .routing import Routing, RoutingOperation
 
 __all__ = [
@@ -32,8 +35,14 @@ __all__ = [
     "OpportunityStage",
     "Product",
     "ProductVersion",
+    "QUOTE_TRANSITIONS",
+    "Quote",
+    "QuoteItem",
+    "QuoteStatus",
     "Routing",
     "RoutingOperation",
     "SalesOrder",
+    "SalesOrderLine",
+    "SalesOrderStatus",
     "ServiceTicket",
 ]

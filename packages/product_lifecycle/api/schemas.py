@@ -319,3 +319,81 @@ class OpportunityTransition(BaseModel):
 class FunnelOut(BaseModel):
     leads: dict[str, int]
     opportunities: dict[str, int]
+
+
+# ── Quote / SalesOrder ────────────────────────────────────────────────────── #
+
+
+class QuoteCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    customer_id: UUID
+    quote_no: str = Field(..., max_length=64)
+    currency: str = Field("CNY", max_length=8)
+    valid_until: datetime | None = None
+    remark: str | None = None
+
+
+class QuoteItemCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    product_id: UUID
+    quantity: Decimal = Field(..., gt=0, max_digits=18, decimal_places=4)
+    uom: str = Field(..., max_length=16)
+    unit_price: Decimal = Field(..., ge=0, max_digits=18, decimal_places=4)
+
+
+class QuoteItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    product_id: UUID
+    quantity: Decimal
+    uom: str
+    unit_price: Decimal
+    line_total: Decimal
+
+
+class QuoteOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    customer_id: UUID
+    quote_no: str
+    status: str
+    total_amount: Decimal
+    currency: str
+    valid_until: datetime | None = None
+    remark: str | None = None
+    items: list[QuoteItemOut] = []
+
+
+class QuoteTransition(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    target_status: str
+    promised_delivery: datetime | None = None
+
+
+class SalesOrderLineOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    product_id: UUID
+    quantity: Decimal
+    uom: str
+    unit_price: Decimal
+    line_total: Decimal
+
+
+class SalesOrderOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    customer_id: UUID
+    order_no: str
+    status: str
+    total_amount: Decimal
+    currency: str
+    promised_delivery: datetime | None = None
+    lines: list[SalesOrderLineOut] = []
