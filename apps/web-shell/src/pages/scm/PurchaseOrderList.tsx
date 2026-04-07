@@ -33,11 +33,7 @@ export default function PurchaseOrderList() {
       const sid = rec.supplier_id as string;
       return supplierMap[sid] || (sid || '').slice(0, 8);
     }},
-    { key: 'total_amount', header: '金额', className: 'text-right', render: r => fmt(r.total_amount) },
-    { key: 'currency', header: '币种', render: r => {
-      const rec = r as unknown as Record<string, unknown>;
-      return (rec.currency as string) || 'CNY';
-    }},
+    { key: 'total_amount', header: '金额 (¥)', className: 'text-right', render: r => fmt(r.total_amount) },
     { key: 'status', header: '状态', render: r => <StatusBadge status={r.status} /> },
   ];
 
