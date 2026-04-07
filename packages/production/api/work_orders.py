@@ -19,6 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.production.models import WorkOrder
+from packages.production.services.bom_client import BomClient, BomNotFoundError
 from packages.shared.auth import CurrentUser
 from packages.shared.contracts.base import Quantity, UnitOfMeasure
 from packages.shared.contracts.production import WorkOrderDTO, WorkOrderStatus
@@ -179,6 +180,14 @@ async def transition_status(
             f"cannot transition from {current.value} to {target.value}; "
             f"allowed: {[s.value for s in allowed]}",
         )
+
+    # TASK-MFG-003: releasing requires BOM validation
+    if target == WorkOrderStatus.RELEASED:
+        bom_client = BomClient()
+        try:
+            await bom_client.get_bom(wo.bom_id)
+        except BomNotFoundError:
+            raise HTTPException(422, f"BOM {wo.bom_id} not found in PLM, cannot release")
 
     wo.status = target.value
     wo.updated_by = user.id

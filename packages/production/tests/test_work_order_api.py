@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+import respx
 from fastapi.testclient import TestClient
+from httpx import Response
+
+from packages.production.services.bom_client import PLM_BASE_URL
 
 
 def _create_payload() -> dict:
@@ -17,6 +21,24 @@ def _create_payload() -> dict:
         "planned_start": "2026-05-01T08:00:00Z",
         "planned_end": "2026-05-02T18:00:00Z",
     }
+
+
+def _mock_bom_ok(bom_id: str, product_id: str) -> None:
+    respx.get(f"{PLM_BASE_URL}/plm/bom/{bom_id}").mock(
+        return_value=Response(
+            200,
+            json={
+                "id": bom_id,
+                "product_id": product_id,
+                "product_code": "P-001",
+                "version": "1.0",
+                "status": "approved",
+                "items": [],
+                "created_at": "2026-04-01T00:00:00Z",
+                "updated_at": "2026-04-01T00:00:00Z",
+            },
+        )
+    )
 
 
 def test_create_work_order(auth_client: TestClient) -> None:
@@ -47,9 +69,15 @@ def test_get_work_order(auth_client: TestClient) -> None:
     assert r2.json()["id"] == wo_id
 
 
+@respx.mock
 def test_status_transition_happy_path(auth_client: TestClient) -> None:
-    r = auth_client.post("/mfg/work-orders", json=_create_payload())
-    wo_id = r.json()["id"]
+    payload = _create_payload()
+    r = auth_client.post("/mfg/work-orders", json=payload)
+    wo = r.json()
+    wo_id = wo["id"]
+
+    # Mock BOM for the planned→released transition
+    _mock_bom_ok(wo["bom_id"], wo["product_id"])
 
     for target in ("released", "in_progress", "completed", "closed"):
         r = auth_client.patch(
