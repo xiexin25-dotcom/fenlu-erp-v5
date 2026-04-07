@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Package } from 'lucide-react';
-import { scmApi, plmApi, type InventoryItem } from '@/lib/api';
+import { scmApi, plmApi, api, type InventoryItem } from '@/lib/api';
 import DataTable, { type Column } from '@/components/DataTable';
 import PageHeader from '@/components/PageHeader';
 import FormDialog, { FormField, FormInput, FormSelect } from '@/components/FormDialog';
@@ -18,10 +18,12 @@ export default function InventoryList() {
   const { data: whData } = useQuery({ queryKey: ['warehouses-all'], queryFn: () => scmApi.listWarehouses() });
 
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<'in' | 'out'>('in');
   const [productId, setProductId] = useState('');
   const [warehouseId, setWarehouseId] = useState('');
   const [quantity, setQuantity] = useState('');
   const [batchNo, setBatchNo] = useState('');
+  const [workOrderId, setWorkOrderId] = useState('');
 
   const prodMap = useMemo(() => {
     const m: Record<string, string> = {};
@@ -54,18 +56,22 @@ export default function InventoryList() {
     }},
   ];
 
-  const handleCreate = async () => {
-    await scmApi.receive({
-      product_id: productId,
-      warehouse_id: warehouseId,
-      quantity: Number(quantity) || 0,
-      batch_no: batchNo,
-    });
+  const handleSubmit = async () => {
+    const tid = localStorage.getItem('tenant_id') || '';
+    if (mode === 'in') {
+      await scmApi.receive({
+        product_id: productId, warehouse_id: warehouseId,
+        quantity: Number(quantity) || 0, uom: 'pcs', batch_no: batchNo,
+      });
+    } else {
+      await api.post(`/scm/issue?tenant_id=${tid}`, {
+        product_id: productId, warehouse_id: warehouseId,
+        quantity: Number(quantity) || 0, uom: 'pcs', batch_no: batchNo,
+        work_order_id: workOrderId || undefined,
+      });
+    }
     qc.invalidateQueries({ queryKey: ['inventory'] });
-    setProductId('');
-    setWarehouseId('');
-    setQuantity('');
-    setBatchNo('');
+    setProductId(''); setWarehouseId(''); setQuantity(''); setBatchNo(''); setWorkOrderId('');
   };
 
   return (
@@ -74,12 +80,24 @@ export default function InventoryList() {
         title="库存管理"
         subtitle="StockMove 全追溯"
         icon={<Package size={22} strokeWidth={1.5} />}
-        actionLabel="入库"
-        onAction={() => setOpen(true)}
-      />
+      >
+        <button onClick={() => { setMode('in'); setOpen(true); }}
+          className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-medium rounded-lg text-white"
+          style={{ background: 'var(--status-green-fg)' }}>
+          入库
+        </button>
+        <button onClick={() => { setMode('out'); setOpen(true); }}
+          className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-medium rounded-lg text-white"
+          style={{ background: 'var(--status-amber-fg)' }}>
+          出库/领料
+        </button>
+      </PageHeader>
       <DataTable<InventoryItem> columns={columns} data={data || []} loading={isLoading} emptyText="暂无库存记录" />
 
-      <FormDialog open={open} onClose={() => setOpen(false)} title="入库操作" onSubmit={handleCreate} submitLabel="确认入库">
+      <FormDialog open={open} onClose={() => setOpen(false)}
+        title={mode === 'in' ? '入库操作' : '出库/领料'}
+        onSubmit={handleSubmit}
+        submitLabel={mode === 'in' ? '确认入库' : '确认出库'}>
         <FormField label="产品">
           <FormSelect value={productId} onChange={e => setProductId(e.target.value)} required>
             <option value="">请选择产品</option>
@@ -98,6 +116,11 @@ export default function InventoryList() {
         <FormField label="批次号">
           <FormInput value={batchNo} onChange={e => setBatchNo(e.target.value)} placeholder="例: BATCH-20260401" required />
         </FormField>
+        {mode === 'out' && (
+          <FormField label="关联工单 (选填)">
+            <FormInput value={workOrderId} onChange={e => setWorkOrderId(e.target.value)} placeholder="工单UUID (可不填)" />
+          </FormField>
+        )}
       </FormDialog>
     </div>
   );
