@@ -34,7 +34,8 @@ class RedisEventPublisher:
 
     async def publish(self, event: BaseEvent) -> None:
         r = await self._get_redis()
-        await r.xadd(MFG_STREAM, event.model_dump(mode="json"))  # type: ignore[union-attr]
+        data = {k: str(v) for k, v in event.model_dump(mode="json").items() if v is not None}
+        await r.xadd(MFG_STREAM, data)  # type: ignore[union-attr]
 
     async def close(self) -> None:
         if self._redis is not None:
