@@ -31,6 +31,7 @@ from packages.supply_chain.models import (  # noqa: F401
     RFQ,
     RFQLine,
     Supplier,
+    SupplierProduct,
     SupplierRating,
     SupplierTierChange,
 )

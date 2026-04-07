@@ -9,6 +9,7 @@ from .purchase import (
     RFQLine,
 )
 from .supplier import Supplier, SupplierRating, SupplierTierChange
+from .supplier_product import SupplierProduct
 
 __all__ = [
     "PurchaseOrder",
@@ -20,6 +21,7 @@ __all__ = [
     "RFQ",
     "RFQLine",
     "Supplier",
+    "SupplierProduct",
     "SupplierRating",
     "SupplierTierChange",
 ]

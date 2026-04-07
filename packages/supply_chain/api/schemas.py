@@ -335,3 +335,51 @@ class ReceiptResponse(BaseModel):
 
 class StatusTransition(BaseModel):
     to_status: str
+
+
+# =========================================================================== #
+# 物料-供应商映射 (SupplierProduct)
+# =========================================================================== #
+
+
+class SupplierProductCreate(BaseModel):
+    supplier_id: UUID
+    product_id: UUID
+    is_preferred: bool = False
+    lead_days: int = Field(7, ge=0)
+    min_order_qty: Decimal = Field(Decimal("0"), ge=0, max_digits=18, decimal_places=4)
+    uom: str = "pcs"
+    reference_price: Decimal | None = Field(None, ge=0, max_digits=18, decimal_places=4)
+    currency: str = "CNY"
+
+
+class SupplierProductResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    supplier_id: UUID
+    product_id: UUID
+    is_preferred: bool
+    lead_days: int
+    min_order_qty: Decimal
+    uom: str
+    reference_price: Decimal | None = None
+    currency: str
+    tenant_id: UUID
+
+
+# =========================================================================== #
+# BOM-driven purchase (Lane 1 → Lane 3)
+# =========================================================================== #
+
+
+class BOMPurchaseResponse(BaseModel):
+    """BOM 反算采购的返回: 创建了哪些 PR。"""
+
+    bom_id: UUID
+    target_quantity: Decimal
+    purchase_requests: list[PRResponse]
+    unmapped_products: list[UUID] = Field(
+        default_factory=list,
+        description="没有匹配供应商的物料 ID 列表",
+    )

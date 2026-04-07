@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from packages.shared.db import get_session
 
 from .schemas import (
+    BOMPurchaseResponse,
     POCreate,
     POResponse,
     PRCreate,
@@ -22,6 +23,8 @@ from .schemas import (
     StatusTransition,
     SupplierCreate,
     SupplierListParams,
+    SupplierProductCreate,
+    SupplierProductResponse,
     SupplierRatingCreate,
     SupplierRatingResponse,
     SupplierResponse,
@@ -29,6 +32,7 @@ from .schemas import (
     TierChangeRequest,
     TierChangeResponse,
 )
+from packages.shared.contracts.supply_chain import PurchaseRequestFromBOM
 from packages.supply_chain.services.purchase_service import PurchaseService
 from packages.supply_chain.services.supplier_service import SupplierService
 
@@ -397,3 +401,52 @@ async def transition_receipt(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return ReceiptResponse.model_validate(receipt)
+
+
+# =========================================================================== #
+# SupplierProduct (物料-供应商映射)
+# =========================================================================== #
+
+
+@router.post("/supplier-products", response_model=SupplierProductResponse, status_code=201)
+async def create_supplier_product(
+    body: SupplierProductCreate,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> SupplierProductResponse:
+    svc = PurchaseService(session)
+    sp = await svc.create_supplier_product(tenant_id, body)
+    return SupplierProductResponse.model_validate(sp)
+
+
+# =========================================================================== #
+# BOM-driven purchase (Lane 1 → Lane 3)
+# =========================================================================== #
+
+
+@router.post("/purchase-from-bom", response_model=BOMPurchaseResponse, status_code=201)
+async def purchase_from_bom(
+    body: PurchaseRequestFromBOM,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> BOMPurchaseResponse:
+    """Lane 1 BOM 反算采购: explode BOM → 按供应商分组 → 创建 PR。"""
+    svc = PurchaseService(session)
+    try:
+        prs, unmapped = await svc.purchase_from_bom(
+            tenant_id=tenant_id,
+            bom_id=body.bom_id,
+            target_quantity=body.target_quantity.value,
+            target_uom=body.target_quantity.uom.value,
+            needed_by=body.needed_by,
+            requested_by=body.requested_by,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return BOMPurchaseResponse(
+        bom_id=body.bom_id,
+        target_quantity=body.target_quantity.value,
+        purchase_requests=[PRResponse.model_validate(pr) for pr in prs],
+        unmapped_products=unmapped,
+    )

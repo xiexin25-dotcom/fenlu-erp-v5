@@ -4,19 +4,25 @@ SCM · 采购链服务层
 
 PR → RFQ → PO → Receipt 全链路,含状态转换强制校验。
 PO 审批时 emit PurchaseOrderApprovedEvent 到 scm-events。
+BOM-driven purchase: Lane 1 → explode BOM → 按供应商分组 → 创建 PR。
 """
 
 from __future__ import annotations
 
+from collections import defaultdict
+from datetime import datetime
 from decimal import Decimal
+from math import ceil
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from packages.shared.contracts.product_lifecycle import BOMDTO
 from packages.supply_chain.api.schemas import (
     POCreate,
     PRCreate,
+    PRLineCreate,
     ReceiptCreate,
     RFQCreate,
     RFQLineUpdate,
@@ -32,6 +38,8 @@ from packages.supply_chain.models.purchase import (
     RFQLine,
     validate_transition,
 )
+from packages.supply_chain.models.supplier_product import SupplierProduct
+from packages.supply_chain.services.bom_client import BOMClient, HttpBOMClient
 from packages.supply_chain.services.event_publisher import (
     EventPublisher,
     RedisEventPublisher,
@@ -43,9 +51,11 @@ class PurchaseService:
         self,
         session: AsyncSession,
         event_publisher: EventPublisher | None = None,
+        bom_client: BOMClient | None = None,
     ) -> None:
         self._session = session
         self._events = event_publisher or RedisEventPublisher()
+        self._bom_client = bom_client or HttpBOMClient()
 
     # ================================================================== #
     # Purchase Request
@@ -286,3 +296,125 @@ class PurchaseService:
         )
         if all_received:
             po.status = "closed"
+
+    # ================================================================== #
+    # SupplierProduct helpers
+    # ================================================================== #
+
+    async def create_supplier_product(
+        self, tenant_id: UUID, data: "SupplierProductCreate",
+    ) -> SupplierProduct:
+        from packages.supply_chain.api.schemas import SupplierProductCreate as _SPC  # noqa: F811
+        sp = SupplierProduct(
+            tenant_id=tenant_id,
+            supplier_id=data.supplier_id,
+            product_id=data.product_id,
+            is_preferred=data.is_preferred,
+            lead_days=data.lead_days,
+            min_order_qty=data.min_order_qty,
+            uom=data.uom,
+            reference_price=data.reference_price,
+            currency=data.currency,
+        )
+        self._session.add(sp)
+        await self._session.flush()
+        return sp
+
+    async def get_preferred_suppliers(
+        self, tenant_id: UUID, product_ids: list[UUID],
+    ) -> dict[UUID, SupplierProduct]:
+        """返回每个 product_id 的首选供应商映射。优先 is_preferred=True。"""
+        if not product_ids:
+            return {}
+        stmt = (
+            select(SupplierProduct)
+            .where(
+                SupplierProduct.tenant_id == tenant_id,
+                SupplierProduct.product_id.in_(product_ids),
+            )
+            .order_by(SupplierProduct.is_preferred.desc())
+        )
+        rows = (await self._session.execute(stmt)).scalars().all()
+
+        # 每个 product_id 取第一个 (is_preferred 优先排在前面)
+        result: dict[UUID, SupplierProduct] = {}
+        for sp in rows:
+            if sp.product_id not in result:
+                result[sp.product_id] = sp
+        return result
+
+    # ================================================================== #
+    # BOM-driven purchase (TASK-SCM-004)
+    # ================================================================== #
+
+    async def purchase_from_bom(
+        self,
+        tenant_id: UUID,
+        bom_id: UUID,
+        target_quantity: Decimal,
+        target_uom: str,
+        needed_by: datetime,
+        requested_by: UUID,
+    ) -> tuple[list[PurchaseRequest], list[UUID]]:
+        """
+        BOM 反算采购:
+        1. 从 Lane 1 获取 BOM
+        2. 计算每个组件净需求 = component_qty * target_qty * (1 + scrap_rate)
+        3. 查 SupplierProduct 找首选供应商
+        4. 按供应商分组,每组创建一个 PR
+
+        Returns: (创建的 PR 列表, 未匹配供应商的 product_id 列表)
+        """
+        # 1. Fetch BOM from Lane 1
+        bom = await self._bom_client.get_bom(bom_id)
+        if bom is None:
+            raise ValueError(f"BOM {bom_id} not found (Lane 1 unreachable or BOM does not exist)")
+        if not bom.items:
+            raise ValueError(f"BOM {bom_id} has no items")
+
+        # 2. Calculate required quantities per component
+        requirements: list[tuple[UUID, Decimal, str]] = []  # (product_id, qty, uom)
+        for item in bom.items:
+            gross_qty = item.quantity.value * target_quantity * (1 + Decimal(str(item.scrap_rate)))
+            requirements.append((item.component_id, gross_qty, item.quantity.uom.value))
+
+        # 3. Find preferred suppliers
+        product_ids = [r[0] for r in requirements]
+        supplier_map = await self.get_preferred_suppliers(tenant_id, product_ids)
+
+        # 4. Group by supplier
+        # supplier_id → [(product_id, qty, uom)]
+        grouped: dict[UUID, list[tuple[UUID, Decimal, str]]] = defaultdict(list)
+        unmapped: list[UUID] = []
+
+        for product_id, qty, uom in requirements:
+            sp = supplier_map.get(product_id)
+            if sp is None:
+                unmapped.append(product_id)
+            else:
+                grouped[sp.supplier_id].append((product_id, qty, uom))
+
+        # 5. Create one PR per supplier
+        prs: list[PurchaseRequest] = []
+        pr_seq = 1
+        for supplier_id, items in grouped.items():
+            pr_no = f"PR-BOM-{str(bom_id)[:8]}-{pr_seq:02d}"
+            lines = [
+                PRLineCreate(product_id=pid, quantity=qty, uom=uom)
+                for pid, qty, uom in items
+            ]
+            pr = await self.create_pr(
+                tenant_id,
+                PRCreate(
+                    request_no=pr_no,
+                    needed_by=needed_by,
+                    remark=f"BOM-driven: bom={bom_id}, target_qty={target_quantity}",
+                    lines=lines,
+                ),
+            )
+            pr.requested_by = requested_by
+            await self._session.flush()
+            prs.append(pr)
+            pr_seq += 1
+
+        return prs, unmapped
