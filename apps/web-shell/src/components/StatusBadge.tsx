@@ -1,37 +1,36 @@
-const colorMap: Record<string, string> = {
-  // work order / general
-  planned: 'bg-gray-100 text-gray-700',
-  released: 'bg-blue-100 text-blue-700',
-  in_progress: 'bg-amber-100 text-amber-700',
-  completed: 'bg-green-100 text-green-700',
-  closed: 'bg-gray-200 text-gray-500',
-  // ecn
-  draft: 'bg-gray-100 text-gray-700',
-  reviewing: 'bg-blue-100 text-blue-700',
-  approved: 'bg-green-100 text-green-700',
-  effective: 'bg-purple-100 text-purple-700',
-  // safety
-  reported: 'bg-red-100 text-red-700',
-  assigned: 'bg-orange-100 text-orange-700',
-  rectifying: 'bg-amber-100 text-amber-700',
-  verified: 'bg-green-100 text-green-700',
-  // supplier tier
-  strategic: 'bg-purple-100 text-purple-700',
-  preferred: 'bg-blue-100 text-blue-700',
-  blacklisted: 'bg-red-100 text-red-700',
-  // finance
-  posted: 'bg-green-100 text-green-700',
-  pending: 'bg-amber-100 text-amber-700',
-  paid: 'bg-green-100 text-green-700',
-  overdue: 'bg-red-100 text-red-700',
-  partial: 'bg-amber-100 text-amber-700',
-  // qc
-  pass: 'bg-green-100 text-green-700',
-  fail: 'bg-red-100 text-red-700',
-  conditional: 'bg-amber-100 text-amber-700',
-  // generic
-  active: 'bg-green-100 text-green-700',
-  inactive: 'bg-gray-200 text-gray-500',
+const colorMap: Record<string, [string, string]> = {
+  // [bg, fg] — muted Apple-style pastels
+  planned: ['var(--status-gray)', 'var(--status-gray-fg)'],
+  draft: ['var(--status-gray)', 'var(--status-gray-fg)'],
+  closed: ['var(--status-gray)', 'var(--status-gray-fg)'],
+  inactive: ['var(--status-gray)', 'var(--status-gray-fg)'],
+
+  released: ['var(--status-blue)', 'var(--status-blue-fg)'],
+  reviewing: ['var(--status-blue)', 'var(--status-blue-fg)'],
+  preferred: ['var(--status-blue)', 'var(--status-blue-fg)'],
+
+  in_progress: ['var(--status-amber)', 'var(--status-amber-fg)'],
+  pending: ['var(--status-amber)', 'var(--status-amber-fg)'],
+  conditional: ['var(--status-amber)', 'var(--status-amber-fg)'],
+  assigned: ['var(--status-amber)', 'var(--status-amber-fg)'],
+  rectifying: ['var(--status-amber)', 'var(--status-amber-fg)'],
+  partial: ['var(--status-amber)', 'var(--status-amber-fg)'],
+
+  completed: ['var(--status-green)', 'var(--status-green-fg)'],
+  approved: ['var(--status-green)', 'var(--status-green-fg)'],
+  active: ['var(--status-green)', 'var(--status-green-fg)'],
+  pass: ['var(--status-green)', 'var(--status-green-fg)'],
+  verified: ['var(--status-green)', 'var(--status-green-fg)'],
+  posted: ['var(--status-green)', 'var(--status-green-fg)'],
+  paid: ['var(--status-green)', 'var(--status-green-fg)'],
+
+  reported: ['var(--status-red)', 'var(--status-red-fg)'],
+  fail: ['var(--status-red)', 'var(--status-red-fg)'],
+  overdue: ['var(--status-red)', 'var(--status-red-fg)'],
+  blacklisted: ['var(--status-red)', 'var(--status-red-fg)'],
+
+  effective: ['var(--status-purple)', 'var(--status-purple-fg)'],
+  strategic: ['var(--status-purple)', 'var(--status-purple-fg)'],
 };
 
 const labelMap: Record<string, string> = {
@@ -47,10 +46,13 @@ const labelMap: Record<string, string> = {
 
 export default function StatusBadge({ status }: { status: string }) {
   const s = status.toLowerCase();
-  const color = colorMap[s] || 'bg-gray-100 text-gray-700';
+  const [bg, fg] = colorMap[s] || ['var(--status-gray)', 'var(--status-gray-fg)'];
   const label = labelMap[s] || status;
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${color}`}>
+    <span
+      className="inline-flex items-center px-2 py-[3px] rounded-md text-[11px] font-medium"
+      style={{ background: bg, color: fg }}
+    >
       {label}
     </span>
   );

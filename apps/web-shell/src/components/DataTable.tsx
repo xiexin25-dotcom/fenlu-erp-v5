@@ -25,13 +25,13 @@ export default function DataTable<T extends object>({
   const totalPages = total ? Math.ceil(total / pageSize) : 1;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-[hsl(214.3,31.8%,91.4%)] overflow-hidden">
+    <div className="overflow-hidden" style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border)' }}>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-[13px]">
           <thead>
-            <tr className="border-b border-[hsl(214.3,31.8%,91.4%)] bg-[hsl(210,40%,98%)]">
+            <tr style={{ borderBottom: '1px solid var(--divider)' }}>
               {columns.map(col => (
-                <th key={col.key} className={`px-4 py-3 text-left font-medium text-[hsl(215.4,16.3%,46.9%)] ${col.className || ''}`}>
+                <th key={col.key} className={`px-5 py-3 text-left text-[12px] font-medium uppercase tracking-wider ${col.className || ''}`} style={{ color: 'var(--fg-tertiary)' }}>
                   {col.header}
                 </th>
               ))}
@@ -39,19 +39,22 @@ export default function DataTable<T extends object>({
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={columns.length} className="px-4 py-12 text-center">
-                <Loader2 className="animate-spin mx-auto text-[hsl(215.4,16.3%,46.9%)]" size={24} />
+              <tr><td colSpan={columns.length} className="px-5 py-16 text-center">
+                <Loader2 className="animate-spin mx-auto" size={20} style={{ color: 'var(--fg-tertiary)' }} />
               </td></tr>
             ) : data.length === 0 ? (
-              <tr><td colSpan={columns.length} className="px-4 py-12 text-center text-[hsl(215.4,16.3%,46.9%)]">{emptyText}</td></tr>
+              <tr><td colSpan={columns.length} className="px-5 py-16 text-center text-[13px]" style={{ color: 'var(--fg-tertiary)' }}>{emptyText}</td></tr>
             ) : data.map((row, i) => (
               <tr
                 key={i}
                 onClick={() => onRowClick?.(row)}
-                className={`border-b border-[hsl(214.3,31.8%,91.4%)] last:border-0 ${onRowClick ? 'cursor-pointer hover:bg-[hsl(210,40%,98%)]' : ''} transition`}
+                className={onRowClick ? 'cursor-pointer' : ''}
+                style={{ borderBottom: i < data.length - 1 ? '1px solid var(--divider)' : 'none' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
                 {columns.map(col => (
-                  <td key={col.key} className={`px-4 py-3 ${col.className || ''}`}>
+                  <td key={col.key} className={`px-5 py-3.5 ${col.className || ''}`}>
                     {col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? '')}
                   </td>
                 ))}
@@ -61,18 +64,20 @@ export default function DataTable<T extends object>({
         </table>
       </div>
       {total !== undefined && total > pageSize && (
-        <div className="flex items-center justify-between px-4 py-3 border-t border-[hsl(214.3,31.8%,91.4%)]">
-          <span className="text-xs text-[hsl(215.4,16.3%,46.9%)]">共 {total} 条</span>
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between px-5 py-3" style={{ borderTop: '1px solid var(--divider)' }}>
+          <span className="text-[12px]" style={{ color: 'var(--fg-tertiary)' }}>共 {total} 条</span>
+          <div className="flex items-center gap-1">
             <button
               onClick={() => onPageChange?.(page - 1)} disabled={page <= 1}
-              className="p-1.5 rounded hover:bg-[hsl(210,40%,96.1%)] disabled:opacity-30 transition"
-            ><ChevronLeft size={16} /></button>
-            <span className="text-sm">{page} / {totalPages}</span>
+              className="p-1.5 rounded-lg disabled:opacity-20"
+              style={{ color: 'var(--fg-secondary)' }}
+            ><ChevronLeft size={15} /></button>
+            <span className="text-[12px] px-2" style={{ color: 'var(--fg-secondary)' }}>{page} / {totalPages}</span>
             <button
               onClick={() => onPageChange?.(page + 1)} disabled={page >= totalPages}
-              className="p-1.5 rounded hover:bg-[hsl(210,40%,96.1%)] disabled:opacity-30 transition"
-            ><ChevronRight size={16} /></button>
+              className="p-1.5 rounded-lg disabled:opacity-20"
+              style={{ color: 'var(--fg-secondary)' }}
+            ><ChevronRight size={15} /></button>
           </div>
         </div>
       )}

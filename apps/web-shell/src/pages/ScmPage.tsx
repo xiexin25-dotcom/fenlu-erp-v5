@@ -1,28 +1,21 @@
-import { useNavigate } from 'react-router-dom';
 import { Truck } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
+import ModuleCard from '@/components/ModuleCard';
 
 const modules = [
   { title: '供应商管理', desc: '评级 + Tier 转换', path: '/scm/suppliers' },
-  { title: '采购管理', desc: 'PR→RFQ→PO→Receipt', path: '/scm/purchase-orders' },
+  { title: '采购管理', desc: 'PR → RFQ → PO → Receipt', path: '/scm/purchase-orders' },
   { title: '仓库管理', desc: '多仓 + 4级库位', path: '/scm/warehouses' },
   { title: '库存管理', desc: 'StockMove 全追溯', path: '/scm/inventory' },
   { title: '盘点管理', desc: '差异自动调整', path: '/scm/stocktakes' },
 ];
 
 export default function ScmPage() {
-  const navigate = useNavigate();
   return (
-    <div className="p-6">
-      <PageHeader title="供应链管理" icon={<Truck className="text-orange-500" size={24} />} />
+    <div className="p-8 max-w-[1200px] mx-auto">
+      <PageHeader title="供应链管理" subtitle="Supply Chain Management" icon={<Truck size={22} strokeWidth={1.5} />} />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {modules.map(item => (
-          <div key={item.title} onClick={() => navigate(item.path)}
-            className="bg-white rounded-xl p-5 shadow-sm border border-[hsl(214.3,31.8%,91.4%)] cursor-pointer hover:shadow-md hover:border-orange-300 transition">
-            <h3 className="font-medium">{item.title}</h3>
-            <p className="text-sm text-[hsl(215.4,16.3%,46.9%)] mt-1">{item.desc}</p>
-          </div>
-        ))}
+        {modules.map(m => <ModuleCard key={m.title} {...m} />)}
       </div>
     </div>
   );

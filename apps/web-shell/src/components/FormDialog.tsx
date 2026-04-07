@@ -32,22 +32,43 @@ export default function FormDialog({ open, onClose, title, onSubmit, children, s
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[hsl(214.3,31.8%,91.4%)]">
-          <h2 className="text-lg font-bold">{title}</h2>
-          <button onClick={onClose} className="p-1 hover:bg-[hsl(210,40%,96.1%)] rounded transition"><X size={18} /></button>
+      {/* Frosted overlay */}
+      <div
+        className="absolute inset-0"
+        onClick={onClose}
+        style={{ background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+      />
+      {/* Modal */}
+      <div
+        className="relative w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto"
+        style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-xl)' }}
+      >
+        <div className="flex items-center justify-between px-7 py-5" style={{ borderBottom: '1px solid var(--divider)' }}>
+          <h2 className="text-[17px] font-semibold" style={{ color: 'var(--fg)' }}>{title}</h2>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg"
+            style={{ color: 'var(--fg-tertiary)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          ><X size={16} /></button>
         </div>
         <form onSubmit={handleSubmit}>
-          <div className="px-6 py-4 space-y-4">
+          <div className="px-7 py-5 space-y-5">
             {children}
-            {error && <p className="text-sm text-red-500">{error}</p>}
+            {error && <p className="text-[13px]" style={{ color: 'var(--status-red-fg)' }}>{error}</p>}
           </div>
-          <div className="flex justify-end gap-3 px-6 py-4 border-t border-[hsl(214.3,31.8%,91.4%)]">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded-lg border hover:bg-[hsl(210,40%,96.1%)] transition">取消</button>
-            <button type="submit" disabled={loading} className="px-4 py-2 text-sm bg-[hsl(221.2,83.2%,53.3%)] text-white rounded-lg hover:opacity-90 disabled:opacity-50 transition">
-              {loading ? '保存中...' : submitLabel}
-            </button>
+          <div className="flex justify-end gap-3 px-7 py-4" style={{ borderTop: '1px solid var(--divider)' }}>
+            <button
+              type="button" onClick={onClose}
+              className="px-4 py-2 text-[13px] font-medium rounded-lg"
+              style={{ color: 'var(--fg-secondary)', background: 'var(--bg-hover)' }}
+            >取消</button>
+            <button
+              type="submit" disabled={loading}
+              className="px-5 py-2 text-[13px] font-medium rounded-lg text-white disabled:opacity-50"
+              style={{ background: 'var(--accent)' }}
+            >{loading ? '保存中...' : submitLabel}</button>
           </div>
         </form>
       </div>
@@ -58,7 +79,7 @@ export default function FormDialog({ open, onClose, title, onSubmit, children, s
 export function FormField({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <label className="block text-sm font-medium mb-1">{label}</label>
+      <label className="block text-[13px] font-medium mb-1.5" style={{ color: 'var(--fg-secondary)' }}>{label}</label>
       {children}
     </div>
   );
@@ -68,7 +89,10 @@ export function FormInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(221.2,83.2%,53.3%)] ${props.className || ''}`}
+      className={`w-full px-3.5 py-2.5 text-[14px] rounded-lg outline-none ${props.className || ''}`}
+      style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-card)', ...({} as React.CSSProperties) }}
+      onFocus={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.boxShadow = '0 0 0 3px var(--accent-light)'; }}
+      onBlur={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.boxShadow = 'none'; }}
     />
   );
 }
@@ -77,7 +101,8 @@ export function FormSelect({ children, ...props }: React.SelectHTMLAttributes<HT
   return (
     <select
       {...props}
-      className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(221.2,83.2%,53.3%)] ${props.className || ''}`}
+      className={`w-full px-3.5 py-2.5 text-[14px] rounded-lg outline-none ${props.className || ''}`}
+      style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-card)' }}
     >{children}</select>
   );
 }

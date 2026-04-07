@@ -2,64 +2,60 @@ import { useQuery } from '@tanstack/react-query';
 import { dashboardApi, kpiApi, type DashboardData, type KPI } from '@/lib/api';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell,
+  ResponsiveContainer, Cell,
 } from 'recharts';
 import { TrendingUp, TrendingDown, AlertTriangle, Zap, DollarSign, Activity } from 'lucide-react';
 
-function StatCard({ title, value, unit, icon: Icon, trend, color }: {
+function StatCard({ title, value, unit, icon: Icon, trend }: {
   title: string; value: string | number; unit?: string;
-  icon: typeof TrendingUp; trend?: 'up' | 'down'; color: string;
+  icon: typeof TrendingUp; trend?: 'up' | 'down';
 }) {
   return (
-    <div className="bg-white rounded-xl p-5 shadow-sm border border-[hsl(214.3,31.8%,91.4%)]">
+    <div
+      className="p-5"
+      style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border)' }}
+    >
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm text-[hsl(215.4,16.3%,46.9%)]">{title}</span>
-        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
-          <Icon size={18} className="text-white" />
-        </div>
+        <span className="text-[12px] font-medium uppercase tracking-wider" style={{ color: 'var(--fg-tertiary)' }}>{title}</span>
+        <Icon size={16} strokeWidth={1.5} style={{ color: 'var(--fg-tertiary)' }} />
       </div>
-      <div className="flex items-end gap-1">
-        <span className="text-2xl font-bold">{value}</span>
-        {unit && <span className="text-sm text-[hsl(215.4,16.3%,46.9%)] mb-0.5">{unit}</span>}
+      <div className="flex items-end gap-1.5">
+        <span className="text-[26px] font-semibold tracking-tight" style={{ color: 'var(--fg)' }}>{value}</span>
+        {unit && <span className="text-[13px] mb-1" style={{ color: 'var(--fg-tertiary)' }}>{unit}</span>}
       </div>
       {trend && (
-        <div className={`flex items-center gap-1 mt-1 text-xs ${trend === 'up' ? 'text-green-600' : 'text-red-500'}`}>
-          {trend === 'up' ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-          <span>{trend === 'up' ? '+5.2%' : '-2.1%'} vs last week</span>
+        <div className="flex items-center gap-1 mt-2">
+          {trend === 'up'
+            ? <TrendingUp size={12} style={{ color: 'var(--status-green-fg)' }} />
+            : <TrendingDown size={12} style={{ color: 'var(--status-red-fg)' }} />}
+          <span className="text-[11px]" style={{ color: trend === 'up' ? 'var(--status-green-fg)' : 'var(--status-red-fg)' }}>
+            {trend === 'up' ? '+5.2%' : '-2.1%'} vs last week
+          </span>
         </div>
       )}
     </div>
   );
 }
 
-const COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
-
 function KPIGauge({ kpi }: { kpi: KPI }) {
   const pct = Math.min(100, Math.round((kpi.current_value / kpi.target_value) * 100));
-  const color = pct >= 90 ? '#22c55e' : pct >= 70 ? '#f59e0b' : '#ef4444';
+  const color = pct >= 90 ? 'var(--status-green-fg)' : pct >= 70 ? 'var(--status-amber-fg)' : 'var(--status-red-fg)';
   return (
-    <div className="flex items-center gap-3 py-2">
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-sm truncate">{kpi.name}</span>
-          <span className="text-xs text-[hsl(215.4,16.3%,46.9%)]">{pct}%</span>
-        </div>
-        <div className="h-2 bg-[hsl(210,40%,96.1%)] rounded-full overflow-hidden">
-          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
-        </div>
+    <div className="py-2.5">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[13px]" style={{ color: 'var(--fg)' }}>{kpi.name}</span>
+        <span className="text-[12px] font-medium" style={{ color }}>{pct}%</span>
+      </div>
+      <div className="h-[5px] rounded-full overflow-hidden" style={{ background: 'var(--divider)' }}>
+        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color, transition: 'width 0.6s ease' }} />
       </div>
     </div>
   );
 }
 
-// Mock data for when API is unavailable
 const mockDashboard: DashboardData = {
-  today_revenue: 285600,
-  weekly_output: 12450,
-  weekly_oee: 87.3,
-  open_safety_hazards: 2,
-  energy_unit_consumption: 3.42,
-  cash_position: 4520000,
+  today_revenue: 285600, weekly_output: 12450, weekly_oee: 87.3,
+  open_safety_hazards: 2, energy_unit_consumption: 3.42, cash_position: 4520000,
   revenue_trend: [
     { date: '03-31', amount: 240000 }, { date: '04-01', amount: 268000 },
     { date: '04-02', amount: 255000 }, { date: '04-03', amount: 292000 },
@@ -95,92 +91,82 @@ const scenarioData = [
 ];
 
 export default function Dashboard() {
-  const { data: dashboard } = useQuery({
-    queryKey: ['dashboard'], queryFn: dashboardApi.exec,
-    retry: false,
-  });
-  const { data: kpis } = useQuery({
-    queryKey: ['kpis'], queryFn: kpiApi.list,
-    retry: false,
-  });
+  const { data: dashboard } = useQuery({ queryKey: ['dashboard'], queryFn: dashboardApi.exec, retry: false });
+  const { data: kpis } = useQuery({ queryKey: ['kpis'], queryFn: kpiApi.list, retry: false });
 
   const d = dashboard && dashboard.today_revenue !== undefined ? dashboard : mockDashboard;
   const k = kpis && kpis.length > 0 ? kpis : mockKPIs;
 
+  const cardStyle: React.CSSProperties = { background: 'var(--bg-card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border)' };
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-8 max-w-[1400px] mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-xl font-bold">领导驾驶舱</h1>
-          <p className="text-sm text-[hsl(215.4,16.3%,46.9%)]">决策支持 - 三级集成级</p>
+          <h1 className="text-[28px] font-semibold tracking-tight" style={{ color: 'var(--fg)' }}>领导驾驶舱</h1>
+          <p className="text-[14px] mt-0.5" style={{ color: 'var(--fg-tertiary)' }}>决策支持 - 三级集成级</p>
         </div>
-        <span className="text-sm text-[hsl(215.4,16.3%,46.9%)]">{new Date().toLocaleDateString('zh-CN')}</span>
+        <span className="text-[13px]" style={{ color: 'var(--fg-tertiary)' }}>{new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}</span>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <StatCard title="今日营收" value={((d.today_revenue ?? 0) / 10000).toFixed(1)} unit="万元" icon={DollarSign} trend="up" color="bg-blue-500" />
-        <StatCard title="本周产量" value={(d.weekly_output ?? 0).toLocaleString()} unit="件" icon={Activity} trend="up" color="bg-green-500" />
-        <StatCard title="OEE" value={(d.weekly_oee ?? 0).toFixed(1)} unit="%" icon={TrendingUp} trend="up" color="bg-purple-500" />
-        <StatCard title="安全隐患" value={d.open_safety_hazards ?? 0} unit="项" icon={AlertTriangle} color="bg-red-500" />
-        <StatCard title="单耗" value={(d.energy_unit_consumption ?? 0).toFixed(2)} unit="kWh/件" icon={Zap} trend="down" color="bg-amber-500" />
-        <StatCard title="现金头寸" value={((d.cash_position ?? 0) / 10000).toFixed(0)} unit="万元" icon={DollarSign} color="bg-cyan-500" />
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+        <StatCard title="今日营收" value={((d.today_revenue ?? 0) / 10000).toFixed(1)} unit="万元" icon={DollarSign} trend="up" />
+        <StatCard title="本周产量" value={(d.weekly_output ?? 0).toLocaleString()} unit="件" icon={Activity} trend="up" />
+        <StatCard title="OEE" value={(d.weekly_oee ?? 0).toFixed(1)} unit="%" icon={TrendingUp} trend="up" />
+        <StatCard title="安全隐患" value={d.open_safety_hazards ?? 0} unit="项" icon={AlertTriangle} />
+        <StatCard title="单耗" value={(d.energy_unit_consumption ?? 0).toFixed(2)} unit="kWh/件" icon={Zap} trend="down" />
+        <StatCard title="现金头寸" value={((d.cash_position ?? 0) / 10000).toFixed(0)} unit="万元" icon={DollarSign} />
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Revenue Trend */}
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-[hsl(214.3,31.8%,91.4%)]">
-          <h3 className="text-sm font-medium mb-4">营收趋势 (近7日)</h3>
-          <ResponsiveContainer width="100%" height={240}>
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="p-6" style={cardStyle}>
+          <h3 className="text-[14px] font-semibold mb-5" style={{ color: 'var(--fg)' }}>营收趋势</h3>
+          <ResponsiveContainer width="100%" height={220}>
             <BarChart data={d.revenue_trend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} tickFormatter={v => `${(v/10000).toFixed(0)}万`} />
-              <Tooltip formatter={(v) => [`${(Number(v)/10000).toFixed(1)}万元`, '营收']} />
-              <Bar dataKey="amount" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--divider)" vertical={false} />
+              <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'var(--fg-tertiary)' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: 'var(--fg-tertiary)' }} tickFormatter={v => `${(v/10000).toFixed(0)}万`} axisLine={false} tickLine={false} />
+              <Tooltip formatter={(v) => [`${(Number(v)/10000).toFixed(1)}万元`, '营收']} contentStyle={{ borderRadius: 8, border: '1px solid var(--border)', boxShadow: 'var(--shadow-md)', fontSize: 12 }} />
+              <Bar dataKey="amount" fill="var(--accent)" radius={[6, 6, 0, 0]} barSize={24} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        {/* OEE Trend */}
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-[hsl(214.3,31.8%,91.4%)]">
-          <h3 className="text-sm font-medium mb-4">OEE 趋势 (近7日)</h3>
-          <ResponsiveContainer width="100%" height={240}>
+        <div className="p-6" style={cardStyle}>
+          <h3 className="text-[14px] font-semibold mb-5" style={{ color: 'var(--fg)' }}>OEE 趋势</h3>
+          <ResponsiveContainer width="100%" height={220}>
             <LineChart data={d.oee_trend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-              <YAxis domain={[80, 95]} tick={{ fontSize: 12 }} tickFormatter={v => `${v}%`} />
-              <Tooltip formatter={(v) => [`${v}%`, 'OEE']} />
-              <Line type="monotone" dataKey="oee" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 4 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--divider)" vertical={false} />
+              <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'var(--fg-tertiary)' }} axisLine={false} tickLine={false} />
+              <YAxis domain={[80, 95]} tick={{ fontSize: 11, fill: 'var(--fg-tertiary)' }} tickFormatter={v => `${v}%`} axisLine={false} tickLine={false} />
+              <Tooltip formatter={(v) => [`${v}%`, 'OEE']} contentStyle={{ borderRadius: 8, border: '1px solid var(--border)', boxShadow: 'var(--shadow-md)', fontSize: 12 }} />
+              <Line type="monotone" dataKey="oee" stroke="var(--status-purple-fg)" strokeWidth={2.5} dot={{ r: 3, fill: 'var(--bg-card)', stroke: 'var(--status-purple-fg)', strokeWidth: 2 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Bottom Row */}
+      {/* Bottom */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* KPI Progress */}
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-[hsl(214.3,31.8%,91.4%)]">
-          <h3 className="text-sm font-medium mb-3">KPI 达成率</h3>
-          <div className="space-y-1">
-            {k.map(kpi => <KPIGauge key={kpi.code} kpi={kpi} />)}
-          </div>
+        <div className="p-6" style={cardStyle}>
+          <h3 className="text-[14px] font-semibold mb-4" style={{ color: 'var(--fg)' }}>KPI 达成率</h3>
+          {k.map(kpi => <KPIGauge key={kpi.code} kpi={kpi} />)}
         </div>
 
-        {/* 16 Scenarios */}
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-[hsl(214.3,31.8%,91.4%)] lg:col-span-2">
-          <h3 className="text-sm font-medium mb-4">工信部 16 场景评测等级</h3>
-          <ResponsiveContainer width="100%" height={240}>
+        <div className="p-6 lg:col-span-2" style={cardStyle}>
+          <h3 className="text-[14px] font-semibold mb-5" style={{ color: 'var(--fg)' }}>工信部 16 场景评测</h3>
+          <ResponsiveContainer width="100%" height={260}>
             <BarChart data={scenarioData} layout="vertical" margin={{ left: 70 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis type="number" domain={[0, 3]} ticks={[0, 1, 2, 3]} tick={{ fontSize: 11 }} />
-              <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={65} />
-              <Tooltip formatter={(v) => [`${v}级`, '等级']} />
-              <Bar dataKey="score" radius={[0, 4, 4, 0]}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--divider)" horizontal={false} />
+              <XAxis type="number" domain={[0, 3]} ticks={[0, 1, 2, 3]} tick={{ fontSize: 11, fill: 'var(--fg-tertiary)' }} axisLine={false} tickLine={false} />
+              <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: 'var(--fg-secondary)' }} width={65} axisLine={false} tickLine={false} />
+              <Tooltip formatter={(v) => [`${v}级`, '等级']} contentStyle={{ borderRadius: 8, border: '1px solid var(--border)', fontSize: 12 }} />
+              <Bar dataKey="score" radius={[0, 6, 6, 0]} barSize={14}>
                 {scenarioData.map((entry, i) => (
-                  <Cell key={i} fill={entry.score >= 3 ? '#22c55e' : entry.score >= 2 ? '#f59e0b' : '#ef4444'} />
+                  <Cell key={i} fill={entry.score >= 3 ? 'var(--status-green-fg)' : 'var(--status-amber-fg)'} opacity={0.8} />
                 ))}
               </Bar>
             </BarChart>

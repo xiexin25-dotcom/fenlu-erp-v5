@@ -1,6 +1,6 @@
-import { useNavigate } from 'react-router-dom';
 import { Factory } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
+import ModuleCard from '@/components/ModuleCard';
 
 const modules = [
   { title: '生产工单', desc: 'MES 生产管控', path: '/mfg/work-orders' },
@@ -13,18 +13,11 @@ const modules = [
 ];
 
 export default function MfgPage() {
-  const navigate = useNavigate();
   return (
-    <div className="p-6">
-      <PageHeader title="生产制造管理" icon={<Factory className="text-green-500" size={24} />} />
+    <div className="p-8 max-w-[1200px] mx-auto">
+      <PageHeader title="生产制造管理" subtitle="Manufacturing Execution" icon={<Factory size={22} strokeWidth={1.5} />} />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {modules.map(item => (
-          <div key={item.title} onClick={() => navigate(item.path)}
-            className="bg-white rounded-xl p-5 shadow-sm border border-[hsl(214.3,31.8%,91.4%)] cursor-pointer hover:shadow-md hover:border-green-300 transition">
-            <h3 className="font-medium">{item.title}</h3>
-            <p className="text-sm text-[hsl(215.4,16.3%,46.9%)] mt-1">{item.desc}</p>
-          </div>
-        ))}
+        {modules.map(m => <ModuleCard key={m.title} {...m} />)}
       </div>
     </div>
   );
