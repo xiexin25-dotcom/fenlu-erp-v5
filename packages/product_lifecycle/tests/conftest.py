@@ -7,8 +7,5 @@ from tests.conftest import *  # noqa: F401, F403
 
 import pytest
 
-
-@pytest.fixture(autouse=True)
-def _register_plm_models() -> None:
-    """Ensure PLM models are imported so metadata.create_all picks them up."""
-    import packages.product_lifecycle.models  # noqa: F401
+# Import once at module level so models register exactly once
+import packages.product_lifecycle.models  # noqa: F401

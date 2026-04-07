@@ -12,7 +12,19 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from packages.shared.contracts.base import DocumentStatus, Money, Quantity
-from packages.shared.contracts.product_lifecycle import ProductCategory
+from packages.shared.contracts.product_lifecycle import (
+    CustomerKind,
+    ProductCategory,
+    ServiceTicketStatus,
+)
+
+from packages.product_lifecycle.models import (
+    ECNStatus,
+    LeadStatus,
+    OpportunityStage,
+    QuoteStatus,
+    SalesOrderStatus,
+)
 
 
 class ProductCreate(BaseModel):
@@ -32,7 +44,7 @@ class ProductOut(BaseModel):
     tenant_id: UUID
     code: str
     name: str
-    category: str
+    category: ProductCategory
     uom: str
     current_version: str
     is_active: bool
@@ -100,7 +112,7 @@ class BOMOut(BaseModel):
     product_id: UUID
     product_code: str = ""
     version: str
-    status: str
+    status: DocumentStatus
     description: str | None = None
     items: list[BOMItemOut] = []
     total_cost: Money | None = None
@@ -196,7 +208,7 @@ class ECNOut(BaseModel):
     id: UUID
     product_id: UUID
     ecn_no: str
-    status: str
+    status: ECNStatus
     title: str
     reason: str | None = None
     description: str | None = None
@@ -212,7 +224,7 @@ class CustomerCreate(BaseModel):
 
     code: str = Field(..., max_length=64)
     name: str = Field(..., max_length=255)
-    kind: str = Field(..., pattern=r"^(b2b|b2c)$")
+    kind: CustomerKind
     rating: str | None = Field(None, max_length=8)
     is_online: bool = False
     address: str | None = None
@@ -246,7 +258,7 @@ class CustomerOut(BaseModel):
     tenant_id: UUID
     code: str
     name: str
-    kind: str
+    kind: CustomerKind
     rating: str | None = None
     is_online: bool
     address: str | None = None
@@ -285,7 +297,7 @@ class LeadOut(BaseModel):
     customer_id: UUID
     title: str
     source: str | None = None
-    status: str
+    status: LeadStatus
 
 
 class LeadTransition(BaseModel):
@@ -307,7 +319,7 @@ class OpportunityOut(BaseModel):
     id: UUID
     customer_id: UUID
     title: str
-    stage: str
+    stage: OpportunityStage
     expected_amount: Decimal | None = None
     expected_close: datetime | None = None
 
@@ -360,7 +372,7 @@ class QuoteOut(BaseModel):
     id: UUID
     customer_id: UUID
     quote_no: str
-    status: str
+    status: QuoteStatus
     total_amount: Decimal
     currency: str
     valid_until: datetime | None = None
@@ -392,7 +404,7 @@ class SalesOrderOut(BaseModel):
     id: UUID
     customer_id: UUID
     order_no: str
-    status: str
+    status: SalesOrderStatus
     total_amount: Decimal
     currency: str
     promised_delivery: datetime | None = None
@@ -418,7 +430,7 @@ class TicketOut(BaseModel):
     customer_id: UUID
     ticket_no: str
     product_id: UUID | None = None
-    status: str
+    status: ServiceTicketStatus
     description: str | None = None
     sla_due_at: datetime | None = None
     nps_score: int | None = None

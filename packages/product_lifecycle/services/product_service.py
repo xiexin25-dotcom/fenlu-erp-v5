@@ -143,11 +143,23 @@ async def create_version(
 
     await session.flush()
 
-    # Deep-copy BOM from previous version to new version
+    # Deep-copy BOM + Routing from previous version to new version
+    old_ver_str = f"V{int(new_ver_str.removeprefix('V').split('.')[0]) - 1}.0"
+
     from packages.product_lifecycle.services.bom_service import deep_copy_bom
 
-    old_ver_str = f"V{int(new_ver_str.removeprefix('V').split('.')[0]) - 1}.0"
     await deep_copy_bom(
+        session,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        product_id=product_id,
+        old_version=old_ver_str,
+        new_version=new_ver_str,
+    )
+
+    from packages.product_lifecycle.services.routing_service import deep_copy_routing
+
+    await deep_copy_routing(
         session,
         tenant_id=tenant_id,
         user_id=user_id,
