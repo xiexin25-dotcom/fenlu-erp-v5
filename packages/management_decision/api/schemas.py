@@ -9,7 +9,7 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import Field, model_validator
+from pydantic import Field, computed_field, model_validator
 
 from packages.shared.contracts.base import BaseSchema
 
@@ -92,3 +92,79 @@ class JournalEntryOut(BaseSchema):
     status: str
     memo: str | None
     lines: list[JournalLineOut]
+
+
+# --------------------------------------------------------------------------- #
+# AP (应付账款)
+# --------------------------------------------------------------------------- #
+
+
+class APRecordCreate(BaseSchema):
+    purchase_order_id: UUID
+    supplier_id: UUID
+    total_amount: Decimal = Field(..., gt=0, max_digits=18, decimal_places=4)
+    paid_amount: Decimal = Field(Decimal("0"), ge=0, max_digits=18, decimal_places=4)
+    currency: str = Field("CNY", max_length=3)
+    due_date: date
+    memo: str | None = None
+
+
+class APRecordUpdate(BaseSchema):
+    paid_amount: Decimal | None = Field(None, ge=0, max_digits=18, decimal_places=4)
+    status: str | None = None
+    memo: str | None = None
+
+
+class APRecordOut(BaseSchema):
+    id: UUID
+    purchase_order_id: UUID
+    supplier_id: UUID
+    total_amount: Decimal
+    paid_amount: Decimal
+    currency: str
+    due_date: date
+    status: str
+    memo: str | None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def balance(self) -> Decimal:
+        return self.total_amount - self.paid_amount
+
+
+# --------------------------------------------------------------------------- #
+# AR (应收账款)
+# --------------------------------------------------------------------------- #
+
+
+class ARRecordCreate(BaseSchema):
+    sales_order_id: UUID
+    customer_id: UUID
+    total_amount: Decimal = Field(..., gt=0, max_digits=18, decimal_places=4)
+    received_amount: Decimal = Field(Decimal("0"), ge=0, max_digits=18, decimal_places=4)
+    currency: str = Field("CNY", max_length=3)
+    due_date: date
+    memo: str | None = None
+
+
+class ARRecordUpdate(BaseSchema):
+    received_amount: Decimal | None = Field(None, ge=0, max_digits=18, decimal_places=4)
+    status: str | None = None
+    memo: str | None = None
+
+
+class ARRecordOut(BaseSchema):
+    id: UUID
+    sales_order_id: UUID
+    customer_id: UUID
+    total_amount: Decimal
+    received_amount: Decimal
+    currency: str
+    due_date: date
+    status: str
+    memo: str | None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def balance(self) -> Decimal:
+        return self.total_amount - self.received_amount

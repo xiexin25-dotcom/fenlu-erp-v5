@@ -15,6 +15,12 @@ from packages.shared.auth.deps import CurrentUser, require_permission
 from packages.shared.db import get_session
 
 from .schemas import (
+    APRecordCreate,
+    APRecordOut,
+    APRecordUpdate,
+    ARRecordCreate,
+    ARRecordOut,
+    ARRecordUpdate,
     GLAccountCreate,
     GLAccountOut,
     JournalEntryCreate,
@@ -190,6 +196,194 @@ async def post_journal(
     if entry is None:
         raise HTTPException(status_code=404, detail="凭证不存在")
     return JournalEntryOut.model_validate(entry)
+
+
+# --------------------------------------------------------------------------- #
+# AP (应付账款)
+# --------------------------------------------------------------------------- #
+
+
+@finance_router.post(
+    "/ap",
+    response_model=APRecordOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_permission("mgmt.ap", "create"))],
+)
+async def create_ap(
+    body: APRecordCreate,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> APRecordOut:
+    from packages.management_decision.services.ap_ar import create_ap_record
+
+    record = await create_ap_record(
+        session,
+        tenant_id=user.tenant_id,
+        purchase_order_id=body.purchase_order_id,
+        supplier_id=body.supplier_id,
+        total_amount=body.total_amount,
+        paid_amount=body.paid_amount,
+        currency=body.currency,
+        due_date=body.due_date,
+        memo=body.memo,
+        created_by=user.id,
+    )
+    return APRecordOut.model_validate(record)
+
+
+@finance_router.get(
+    "/ap",
+    response_model=list[APRecordOut],
+    dependencies=[Depends(require_permission("mgmt.ap", "read"))],
+)
+async def list_ap(
+    user: CurrentUser,
+    ap_status: str | None = Query(None, alias="status"),
+    session: AsyncSession = Depends(get_session),
+) -> list[APRecordOut]:
+    from packages.management_decision.services.ap_ar import list_ap_records
+
+    records = await list_ap_records(session, tenant_id=user.tenant_id, status=ap_status)
+    return [APRecordOut.model_validate(r) for r in records]
+
+
+@finance_router.get(
+    "/ap/{record_id}",
+    response_model=APRecordOut,
+    dependencies=[Depends(require_permission("mgmt.ap", "read"))],
+)
+async def get_ap(
+    record_id: UUID,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> APRecordOut:
+    from packages.management_decision.services.ap_ar import get_ap_record
+
+    record = await get_ap_record(session, tenant_id=user.tenant_id, record_id=record_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="应付记录不存在")
+    return APRecordOut.model_validate(record)
+
+
+@finance_router.patch(
+    "/ap/{record_id}",
+    response_model=APRecordOut,
+    dependencies=[Depends(require_permission("mgmt.ap", "update"))],
+)
+async def update_ap(
+    record_id: UUID,
+    body: APRecordUpdate,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> APRecordOut:
+    from packages.management_decision.services.ap_ar import update_ap_record
+
+    record = await update_ap_record(
+        session,
+        tenant_id=user.tenant_id,
+        record_id=record_id,
+        paid_amount=body.paid_amount,
+        status=body.status,
+        memo=body.memo,
+        updated_by=user.id,
+    )
+    if record is None:
+        raise HTTPException(status_code=404, detail="应付记录不存在")
+    return APRecordOut.model_validate(record)
+
+
+# --------------------------------------------------------------------------- #
+# AR (应收账款)
+# --------------------------------------------------------------------------- #
+
+
+@finance_router.post(
+    "/ar",
+    response_model=ARRecordOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_permission("mgmt.ar", "create"))],
+)
+async def create_ar(
+    body: ARRecordCreate,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> ARRecordOut:
+    from packages.management_decision.services.ap_ar import create_ar_record
+
+    record = await create_ar_record(
+        session,
+        tenant_id=user.tenant_id,
+        sales_order_id=body.sales_order_id,
+        customer_id=body.customer_id,
+        total_amount=body.total_amount,
+        received_amount=body.received_amount,
+        currency=body.currency,
+        due_date=body.due_date,
+        memo=body.memo,
+        created_by=user.id,
+    )
+    return ARRecordOut.model_validate(record)
+
+
+@finance_router.get(
+    "/ar",
+    response_model=list[ARRecordOut],
+    dependencies=[Depends(require_permission("mgmt.ar", "read"))],
+)
+async def list_ar(
+    user: CurrentUser,
+    ar_status: str | None = Query(None, alias="status"),
+    session: AsyncSession = Depends(get_session),
+) -> list[ARRecordOut]:
+    from packages.management_decision.services.ap_ar import list_ar_records
+
+    records = await list_ar_records(session, tenant_id=user.tenant_id, status=ar_status)
+    return [ARRecordOut.model_validate(r) for r in records]
+
+
+@finance_router.get(
+    "/ar/{record_id}",
+    response_model=ARRecordOut,
+    dependencies=[Depends(require_permission("mgmt.ar", "read"))],
+)
+async def get_ar(
+    record_id: UUID,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> ARRecordOut:
+    from packages.management_decision.services.ap_ar import get_ar_record
+
+    record = await get_ar_record(session, tenant_id=user.tenant_id, record_id=record_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="应收记录不存在")
+    return ARRecordOut.model_validate(record)
+
+
+@finance_router.patch(
+    "/ar/{record_id}",
+    response_model=ARRecordOut,
+    dependencies=[Depends(require_permission("mgmt.ar", "update"))],
+)
+async def update_ar(
+    record_id: UUID,
+    body: ARRecordUpdate,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> ARRecordOut:
+    from packages.management_decision.services.ap_ar import update_ar_record
+
+    record = await update_ar_record(
+        session,
+        tenant_id=user.tenant_id,
+        record_id=record_id,
+        received_amount=body.received_amount,
+        status=body.status,
+        memo=body.memo,
+        updated_by=user.id,
+    )
+    if record is None:
+        raise HTTPException(status_code=404, detail="应收记录不存在")
+    return ARRecordOut.model_validate(record)
 
 
 router.include_router(finance_router)
