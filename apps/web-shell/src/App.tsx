@@ -1,6 +1,6 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect } from 'react';
 import { useAuth } from '@/stores/auth';
 import Layout from '@/components/Layout';
 import Login from '@/pages/Login';
@@ -44,7 +44,7 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
 });
 
-function AuthGuard({ children }: { children: ReactNode }) {
+function AuthGuard() {
   const user = useAuth(s => s.user);
   const loading = useAuth(s => s.loading);
   const loadUser = useAuth(s => s.loadUser);
@@ -52,17 +52,25 @@ function AuthGuard({ children }: { children: ReactNode }) {
   useEffect(() => { loadUser(); }, [loadUser]);
   if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p>Loading...</p></div>;
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
-  return <>{children}</>;
+  return <Outlet />;
 }
 
-function AppRoutes() {
+function ShellLayout() {
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/*" element={
-        <AuthGuard>
-          <Layout>
-            <Routes>
+    <Layout>
+      <Outlet />
+    </Layout>
+  );
+}
+
+export function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route element={<AuthGuard />}>
+            <Route element={<ShellLayout />}>
               <Route index element={<Dashboard />} />
               {/* PLM */}
               <Route path="plm" element={<PlmPage />} />
@@ -101,19 +109,9 @@ function AppRoutes() {
               <Route path="mgmt/approval" element={<MgmtPage />} />
               <Route path="mgmt/approval/list" element={<ApprovalList />} />
               <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Layout>
-        </AuthGuard>
-      } />
-    </Routes>
-  );
-}
-
-export function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AppRoutes />
+            </Route>
+          </Route>
+        </Routes>
       </BrowserRouter>
     </QueryClientProvider>
   );

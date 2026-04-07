@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import type { ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { useAuth } from '@/stores/auth';
 import {
   LayoutDashboard, Package, Factory, Truck, BarChart3,
