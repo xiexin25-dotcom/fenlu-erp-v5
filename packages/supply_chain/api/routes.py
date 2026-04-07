@@ -337,6 +337,24 @@ async def update_rfq_line(
 # =========================================================================== #
 
 
+@router.get("/purchase-orders", response_model=list[POResponse])
+async def list_pos(
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+) -> list[POResponse]:
+    from sqlalchemy import select
+    from packages.supply_chain.models.purchase import PurchaseOrder
+    result = await session.execute(
+        select(PurchaseOrder)
+        .where(PurchaseOrder.tenant_id == tenant_id)
+        .order_by(PurchaseOrder.created_at.desc())
+        .offset(skip).limit(limit)
+    )
+    return [POResponse.model_validate(po) for po in result.scalars().all()]
+
+
 @router.post("/purchase-orders", response_model=POResponse, status_code=201)
 async def create_po(
     body: POCreate,

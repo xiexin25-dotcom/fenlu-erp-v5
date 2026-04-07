@@ -62,6 +62,23 @@ def calculate_sla_due(rating: str | None) -> datetime:
 # --------------------------------------------------------------------------- #
 
 
+async def list_tickets(
+    session: AsyncSession,
+    *,
+    tenant_id: UUID,
+    skip: int = 0,
+    limit: int = 50,
+) -> list[ServiceTicket]:
+    result = await session.execute(
+        select(ServiceTicket)
+        .where(ServiceTicket.tenant_id == tenant_id)
+        .order_by(ServiceTicket.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    return list(result.scalars().all())
+
+
 async def create_ticket(
     session: AsyncSession,
     *,

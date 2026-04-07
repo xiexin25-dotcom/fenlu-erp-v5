@@ -866,6 +866,18 @@ async def get_order_detail(
 # ── ServiceTicket ─────────────────────────────────────────────────────────── #
 
 
+@router.get("/service/tickets", response_model=list[TicketOut])
+async def list_tickets(
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+) -> list[TicketOut]:
+    from packages.product_lifecycle.services.ticket_service import list_tickets as _list
+    tickets = await _list(session, tenant_id=user.tenant_id, skip=skip, limit=limit)
+    return [TicketOut.model_validate(t) for t in tickets]
+
+
 @router.post("/service/tickets", response_model=TicketOut, status_code=201)
 async def create_ticket(
     body: TicketCreate,
