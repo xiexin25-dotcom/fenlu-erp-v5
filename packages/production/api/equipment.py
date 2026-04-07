@@ -1,9 +1,10 @@
-"""Equipment + EAM endpoints · TASK-MFG-007。
+"""Equipment + EAM endpoints · TASK-MFG-007 / MFG-008。
 
 Routes:
     POST   /mfg/equipment                    创建设备
     GET    /mfg/equipment                     设备列表
     GET    /mfg/equipment/{id}                单台设备
+    GET    /mfg/equipment/{id}/oee?date=      OEE 计算
     POST   /mfg/equipment/{id}/faults         记录故障
     GET    /mfg/equipment/{id}/faults         故障列表
     POST   /mfg/maintenance/plans             创建维保计划
@@ -24,10 +25,11 @@ from packages.production.models import Equipment, FaultRecord, MaintenanceLog, M
 from packages.production.services.event_publisher import EventPublisher
 from packages.production.api.job_tickets import get_publisher
 from packages.production.services.maintenance import generate_due_maintenance
+from packages.production.services.oee import calculate_oee
 from packages.shared.auth import CurrentUser
 from packages.shared.contracts.base import Lane
 from packages.shared.contracts.events import EquipmentFaultEvent, EventType
-from packages.shared.contracts.production import EquipmentSummary
+from packages.shared.contracts.production import EquipmentSummary, OEERecordDTO
 from packages.shared.db import get_session
 
 router = APIRouter(tags=["equipment"])
@@ -165,6 +167,41 @@ async def get_equipment(
     if eq is None:
         raise HTTPException(404, "equipment not found")
     return _to_summary(eq)
+
+
+# ── OEE (TASK-MFG-008) ──────────────────────────────────────────────────────── #
+
+
+@router.get("/equipment/{equipment_id}/oee", response_model=OEERecordDTO)
+async def get_oee(
+    equipment_id: UUID,
+    user: CurrentUser,
+    target_date: date | None = None,
+    session: AsyncSession = Depends(get_session),
+) -> OEERecordDTO:
+    # Verify equipment
+    eq = (
+        await session.execute(
+            select(Equipment).where(
+                Equipment.id == equipment_id,
+                Equipment.tenant_id == user.tenant_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if eq is None:
+        raise HTTPException(404, "equipment not found")
+
+    d = target_date or date.today()
+    result = await calculate_oee(session, equipment_id, d)
+
+    return OEERecordDTO(
+        equipment_id=equipment_id,
+        record_date=d,
+        availability=result.availability,
+        performance=result.performance,
+        quality=result.quality,
+        oee=result.oee,
+    )
 
 
 # ── Fault records ───────────────────────────────────────────────────────────── #

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from packages.production.api.energy import router as energy_router
 from packages.production.api.equipment import router as eam_router
 from packages.production.api.job_tickets import router as jt_router
 from packages.production.api.qc_inspections import router as qc_router
@@ -21,6 +22,7 @@ router.include_router(jt_router)
 router.include_router(qc_router)
 router.include_router(eam_router)
 router.include_router(safety_router)
+router.include_router(energy_router)
 
 
 @router.get("/health")
