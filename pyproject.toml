@@ -30,7 +30,7 @@ dev = [
 ]
 
 [tool.uv.workspace]
-members = ["apps/*", "packages/*"]
+members = ["apps/api_gateway", "packages/shared", "packages/product_lifecycle", "packages/production", "packages/supply_chain", "packages/management_decision"]
 
 [tool.ruff]
 target-version = "py312"
