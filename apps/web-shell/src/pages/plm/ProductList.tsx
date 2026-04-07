@@ -8,14 +8,18 @@ import PageHeader from '@/components/PageHeader';
 import StatusBadge from '@/components/StatusBadge';
 import FormDialog, { FormField, FormInput, FormSelect } from '@/components/FormDialog';
 
+const categoryLabels: Record<string, string> = {
+  self_made: '自制件', raw_material: '原材料', agent: '代理品',
+  packaging: '包装材料', semi_finished: '半成品', finished: '成品',
+};
+
 const columns: Column<Product>[] = [
   { key: 'code', header: '产品编码', className: 'font-mono' },
   { key: 'name', header: '产品名称' },
-  { key: 'category', header: '类别' },
-  { key: 'unit', header: '单位', className: 'w-16' },
-  { key: 'current_version', header: '版本', className: 'w-16', render: r => `V${r.current_version}` },
-  { key: 'status', header: '状态', className: 'w-20', render: r => <StatusBadge status={r.status} /> },
-  { key: 'created_at', header: '创建时间', render: r => new Date(r.created_at).toLocaleDateString('zh-CN') },
+  { key: 'category', header: '类别', render: r => categoryLabels[r.category] || r.category },
+  { key: 'uom', header: '单位', className: 'w-16', render: r => (r as unknown as Record<string, string>).uom || '' },
+  { key: 'current_version', header: '版本', className: 'w-20', render: r => r.current_version?.toString() || '' },
+  { key: 'is_active', header: '状态', className: 'w-20', render: r => <StatusBadge status={(r as unknown as Record<string, boolean>).is_active ? 'active' : 'inactive'} /> },
 ];
 
 export default function ProductList() {
@@ -23,7 +27,7 @@ export default function ProductList() {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ code: '', name: '', category: '', unit: 'pcs' });
+  const [form, setForm] = useState({ code: '', name: '', category: 'self_made', uom: 'pcs' });
 
   const { data: raw, isLoading } = useQuery({
     queryKey: ['products', page],
@@ -33,11 +37,11 @@ export default function ProductList() {
   const total = raw?.total;
 
   return (
-    <div className="p-6">
+    <div className="p-8 max-w-[1200px] mx-auto">
       <PageHeader
         title="产品主数据"
         subtitle="Product Master"
-        icon={<Package className="text-blue-500" size={24} />}
+        icon={<Package size={22} strokeWidth={1.5} />}
         actionLabel="新建产品"
         onAction={() => setShowCreate(true)}
       />
@@ -53,20 +57,19 @@ export default function ProductList() {
       <FormDialog open={showCreate} onClose={() => setShowCreate(false)} title="新建产品" onSubmit={async () => {
         await plmApi.createProduct(form);
         qc.invalidateQueries({ queryKey: ['products'] });
-        setForm({ code: '', name: '', category: '', unit: 'pcs' });
+        setForm({ code: '', name: '', category: 'self_made', uom: 'pcs' });
       }}>
         <FormField label="产品编码"><FormInput value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} required /></FormField>
         <FormField label="产品名称"><FormInput value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required /></FormField>
         <FormField label="类别">
           <FormSelect value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
-            <option value="">选择类别</option>
+            <option value="self_made">自制件</option>
             <option value="raw_material">原材料</option>
-            <option value="semi_finished">半成品</option>
-            <option value="finished">成品</option>
-            <option value="consumable">耗材</option>
+            <option value="agent">代理品</option>
+            <option value="packaging">包装材料</option>
           </FormSelect>
         </FormField>
-        <FormField label="单位"><FormInput value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} /></FormField>
+        <FormField label="单位"><FormInput value={form.uom} onChange={e => setForm(f => ({ ...f, uom: e.target.value }))} /></FormField>
       </FormDialog>
     </div>
   );
