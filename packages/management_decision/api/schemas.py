@@ -1,6 +1,6 @@
 """
-Finance API · Pydantic schemas (request / response)
-====================================================
+Management Decision · Pydantic schemas (request / response)
+============================================================
 """
 
 from __future__ import annotations
@@ -168,3 +168,66 @@ class ARRecordOut(BaseSchema):
     @property
     def balance(self) -> Decimal:
         return self.total_amount - self.received_amount
+
+
+# --------------------------------------------------------------------------- #
+# Employee (员工)
+# --------------------------------------------------------------------------- #
+
+
+class EmployeeCreate(BaseSchema):
+    employee_no: str = Field(..., max_length=32)
+    name: str = Field(..., max_length=64)
+    user_id: UUID | None = None
+    department_id: UUID | None = None
+    position: str = Field("", max_length=64)
+    base_salary: Decimal = Field(Decimal("0"), ge=0, max_digits=18, decimal_places=4)
+    memo: str | None = None
+
+
+class EmployeeUpdate(BaseSchema):
+    name: str | None = Field(None, max_length=64)
+    department_id: UUID | None = None
+    position: str | None = Field(None, max_length=64)
+    base_salary: Decimal | None = Field(None, ge=0, max_digits=18, decimal_places=4)
+    is_active: bool | None = None
+    memo: str | None = None
+
+
+class EmployeeOut(BaseSchema):
+    id: UUID
+    employee_no: str
+    name: str
+    user_id: UUID | None
+    department_id: UUID | None
+    position: str
+    base_salary: Decimal
+    is_active: bool
+    memo: str | None
+
+
+# --------------------------------------------------------------------------- #
+# Payroll (薪资)
+# --------------------------------------------------------------------------- #
+
+
+class PayrollItemOut(BaseSchema):
+    id: UUID
+    employee_id: UUID
+    employee_no: str
+    employee_name: str
+    base_salary: Decimal
+    overtime_pay: Decimal
+    deductions: Decimal
+    net_pay: Decimal
+    memo: str | None
+
+
+class PayrollOut(BaseSchema):
+    id: UUID
+    period: str
+    status: str
+    total_amount: Decimal
+    head_count: int
+    memo: str | None
+    items: list[PayrollItemOut]

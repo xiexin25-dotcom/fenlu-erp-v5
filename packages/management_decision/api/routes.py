@@ -21,10 +21,14 @@ from .schemas import (
     ARRecordCreate,
     ARRecordOut,
     ARRecordUpdate,
+    EmployeeCreate,
+    EmployeeOut,
+    EmployeeUpdate,
     GLAccountCreate,
     GLAccountOut,
     JournalEntryCreate,
     JournalEntryOut,
+    PayrollOut,
 )
 
 router = APIRouter(prefix="/mgmt", tags=["management"])
@@ -387,3 +391,170 @@ async def update_ar(
 
 
 router.include_router(finance_router)
+
+
+# =========================================================================== #
+# HR
+# =========================================================================== #
+
+hr_router = APIRouter(prefix="/hr", tags=["hr"])
+
+
+# --------------------------------------------------------------------------- #
+# Employee
+# --------------------------------------------------------------------------- #
+
+
+@hr_router.post(
+    "/employees",
+    response_model=EmployeeOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_permission("mgmt.employee", "create"))],
+)
+async def create_employee(
+    body: EmployeeCreate,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> EmployeeOut:
+    from packages.management_decision.services.hr import create_employee as _create
+
+    emp = await _create(
+        session,
+        tenant_id=user.tenant_id,
+        employee_no=body.employee_no,
+        name=body.name,
+        user_id=body.user_id,
+        department_id=body.department_id,
+        position=body.position,
+        base_salary=body.base_salary,
+        memo=body.memo,
+        created_by=user.id,
+    )
+    return EmployeeOut.model_validate(emp)
+
+
+@hr_router.get(
+    "/employees",
+    response_model=list[EmployeeOut],
+    dependencies=[Depends(require_permission("mgmt.employee", "read"))],
+)
+async def list_employees_api(
+    user: CurrentUser,
+    active_only: bool = Query(True),
+    session: AsyncSession = Depends(get_session),
+) -> list[EmployeeOut]:
+    from packages.management_decision.services.hr import list_employees
+
+    emps = await list_employees(session, tenant_id=user.tenant_id, active_only=active_only)
+    return [EmployeeOut.model_validate(e) for e in emps]
+
+
+@hr_router.get(
+    "/employees/{employee_id}",
+    response_model=EmployeeOut,
+    dependencies=[Depends(require_permission("mgmt.employee", "read"))],
+)
+async def get_employee_api(
+    employee_id: UUID,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> EmployeeOut:
+    from packages.management_decision.services.hr import get_employee
+
+    emp = await get_employee(session, tenant_id=user.tenant_id, employee_id=employee_id)
+    if emp is None:
+        raise HTTPException(status_code=404, detail="员工不存在")
+    return EmployeeOut.model_validate(emp)
+
+
+@hr_router.patch(
+    "/employees/{employee_id}",
+    response_model=EmployeeOut,
+    dependencies=[Depends(require_permission("mgmt.employee", "update"))],
+)
+async def update_employee_api(
+    employee_id: UUID,
+    body: EmployeeUpdate,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> EmployeeOut:
+    from packages.management_decision.services.hr import update_employee
+
+    emp = await update_employee(
+        session,
+        tenant_id=user.tenant_id,
+        employee_id=employee_id,
+        name=body.name,
+        department_id=body.department_id,
+        position=body.position,
+        base_salary=body.base_salary,
+        is_active=body.is_active,
+        memo=body.memo,
+        updated_by=user.id,
+    )
+    if emp is None:
+        raise HTTPException(status_code=404, detail="员工不存在")
+    return EmployeeOut.model_validate(emp)
+
+
+# --------------------------------------------------------------------------- #
+# Payroll
+# --------------------------------------------------------------------------- #
+
+
+@hr_router.post(
+    "/payroll/run",
+    response_model=PayrollOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_permission("mgmt.payroll", "create"))],
+)
+async def run_payroll_api(
+    user: CurrentUser,
+    period: str = Query(..., pattern=r"^\d{4}-\d{2}$", description="薪资周期 YYYY-MM"),
+    session: AsyncSession = Depends(get_session),
+) -> PayrollOut:
+    from packages.management_decision.services.hr import run_payroll
+
+    try:
+        payroll = await run_payroll(
+            session, tenant_id=user.tenant_id, period=period, created_by=user.id
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    return PayrollOut.model_validate(payroll)
+
+
+@hr_router.get(
+    "/payroll",
+    response_model=list[PayrollOut],
+    dependencies=[Depends(require_permission("mgmt.payroll", "read"))],
+)
+async def list_payrolls_api(
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> list[PayrollOut]:
+    from packages.management_decision.services.hr import list_payrolls
+
+    payrolls = await list_payrolls(session, tenant_id=user.tenant_id)
+    return [PayrollOut.model_validate(p) for p in payrolls]
+
+
+@hr_router.get(
+    "/payroll/{payroll_id}",
+    response_model=PayrollOut,
+    dependencies=[Depends(require_permission("mgmt.payroll", "read"))],
+)
+async def get_payroll_api(
+    payroll_id: UUID,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> PayrollOut:
+    from packages.management_decision.services.hr import get_payroll
+
+    payroll = await get_payroll(session, tenant_id=user.tenant_id, payroll_id=payroll_id)
+    if payroll is None:
+        raise HTTPException(status_code=404, detail="薪资批次不存在")
+    return PayrollOut.model_validate(payroll)
+
+
+router.include_router(hr_router)
