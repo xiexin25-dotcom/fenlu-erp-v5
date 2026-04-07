@@ -56,6 +56,20 @@ export interface ProductVersion { id: string; version: number; description: stri
 export interface BOM { id: string; product_id: string; version: number; items: BOMItem[]; total_cost: number | null; }
 export interface BOMItem { id: string; component_id: string; component_name?: string; quantity: number; unit_cost: number | null; }
 
+export interface ECN {
+  id: string; ecn_number: string; title: string; status: string;
+  affected_product_id: string; description: string; created_at: string;
+}
+export interface Customer {
+  id: string; code: string; name: string; rating: string; industry: string;
+  contact_name: string; contact_phone: string; created_at: string;
+}
+export interface ServiceTicket {
+  id: string; ticket_number: string; customer_id: string; customer_name?: string;
+  subject: string; status: string; priority: string; sla_hours: number;
+  nps_score: number | null; created_at: string;
+}
+
 export const plmApi = {
   listProducts: (skip = 0, limit = 20) => api.get<Product[]>(`/plm/products?skip=${skip}&limit=${limit}`),
   getProduct: (id: string) => api.get<Product>(`/plm/products/${id}`),
@@ -64,6 +78,20 @@ export const plmApi = {
     api.post<ProductVersion>(`/plm/products/${productId}/versions`, data),
   getBom: (id: string) => api.get<BOM>(`/plm/bom/${id}`),
   createBom: (data: { product_id: string; version?: number }) => api.post<BOM>('/plm/bom', data),
+  // ECN
+  getEcn: (id: string) => api.get<ECN>(`/plm/ecn/${id}`),
+  createEcn: (data: Partial<ECN>) => api.post<ECN>('/plm/ecn', data),
+  transitionEcn: (id: string, action: string) => api.post<ECN>(`/plm/ecn/${id}/transition`, { action }),
+  // Customers
+  listCustomers: () => api.get<Customer[]>('/plm/customers'),
+  getCustomer: (id: string) => api.get<Customer>(`/plm/customers/${id}`),
+  createCustomer: (data: Partial<Customer>) => api.post<Customer>('/plm/customers', data),
+  getCustomer360: (id: string) => api.get<Record<string, unknown>>(`/plm/customers/${id}/360`),
+  // Service
+  listTickets: () => api.get<ServiceTicket[]>('/plm/service/tickets'),
+  createTicket: (data: Partial<ServiceTicket>) => api.post<ServiceTicket>('/plm/service/tickets', data),
+  transitionTicket: (id: string, action: string) => api.post<ServiceTicket>(`/plm/service/tickets/${id}/transition`, { action }),
+  closeTicket: (id: string, nps: number) => api.post<ServiceTicket>(`/plm/service/tickets/${id}/close`, { nps_score: nps }),
 };
 
 // --- MFG ---
@@ -73,12 +101,45 @@ export interface WorkOrder {
   planned_start: string; planned_end: string; created_at: string;
 }
 
+export interface QCInspection {
+  id: string; work_order_id: string; product_id: string; inspector: string;
+  result: string; defect_count: number; sample_size: number; notes: string; created_at: string;
+}
+export interface Equipment {
+  id: string; code: string; name: string; equipment_type: string; location: string;
+  status: string; last_maintenance: string | null; created_at: string;
+}
+export interface SafetyHazard {
+  id: string; title: string; description: string; severity: string;
+  status: string; location: string; reporter: string; created_at: string;
+}
+export interface EnergyReading {
+  id: string; meter_id: string; value: number; unit: string; timestamp: string;
+}
+
 export const mfgApi = {
   listWorkOrders: () => api.get<WorkOrder[]>('/mfg/work-orders'),
   getWorkOrder: (id: string) => api.get<WorkOrder>(`/mfg/work-orders/${id}`),
   createWorkOrder: (data: Partial<WorkOrder>) => api.post<WorkOrder>('/mfg/work-orders', data),
   transitionStatus: (id: string, status: string) =>
     api.patch<WorkOrder>(`/mfg/work-orders/${id}/status`, { status }),
+  // QC
+  listInspections: (params?: { work_order_id?: string }) => {
+    const q = params?.work_order_id ? `?work_order_id=${params.work_order_id}` : '';
+    return api.get<QCInspection[]>(`/mfg/qc/inspections${q}`);
+  },
+  createInspection: (data: Partial<QCInspection>) => api.post<QCInspection>('/mfg/qc/inspections', data),
+  // Equipment
+  listEquipment: () => api.get<Equipment[]>('/mfg/equipment'),
+  createEquipment: (data: Partial<Equipment>) => api.post<Equipment>('/mfg/equipment', data),
+  // Safety
+  listHazards: (status?: string) => {
+    const q = status ? `?status=${status}` : '';
+    return api.get<SafetyHazard[]>(`/mfg/safety/hazards${q}`);
+  },
+  createHazard: (data: Partial<SafetyHazard>) => api.post<SafetyHazard>('/mfg/safety/hazards', data),
+  transitionHazard: (id: string, action: string) =>
+    api.patch<SafetyHazard>(`/mfg/safety/hazards/${id}/transition`, { action }),
 };
 
 // --- SCM ---
@@ -100,7 +161,38 @@ export const scmApi = {
   getSupplier: (id: string) => api.get<Supplier>(`/scm/suppliers/${id}`),
   createSupplier: (data: Partial<Supplier>) => api.post<Supplier>('/scm/suppliers', data),
   listRatings: (supplierId: string) => api.get<SupplierRating[]>(`/scm/suppliers/${supplierId}/ratings`),
+  // Purchase Orders
+  listPOs: () => api.get<PurchaseOrder[]>('/scm/purchase-orders'),
+  // Warehouses
+  listWarehouses: () => api.get<Warehouse[]>('/scm/warehouses'),
+  createWarehouse: (data: Partial<Warehouse>) => api.post<Warehouse>('/scm/warehouses', data),
+  // Inventory
+  listInventory: (params?: { product_id?: string; warehouse_id?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.product_id) q.set('product_id', params.product_id);
+    if (params?.warehouse_id) q.set('warehouse_id', params.warehouse_id);
+    return api.get<InventoryItem[]>(`/scm/inventory?${q}`);
+  },
+  // Stocktake
+  listStocktakes: () => api.get<Stocktake[]>('/scm/stocktakes'),
+  createStocktake: (data: Partial<Stocktake>) => api.post<Stocktake>('/scm/stocktakes', data),
 };
+
+export interface PurchaseOrder {
+  id: string; po_number: string; supplier_id: string; supplier_name?: string;
+  status: string; total_amount: number; created_at: string;
+}
+export interface Warehouse {
+  id: string; code: string; name: string; address: string; is_active: boolean;
+}
+export interface InventoryItem {
+  id: string; product_id: string; product_name?: string; warehouse_id: string;
+  warehouse_name?: string; quantity: number; batch_no: string;
+}
+export interface Stocktake {
+  id: string; stocktake_number: string; warehouse_id: string; warehouse_name?: string;
+  status: string; created_at: string;
+}
 
 // --- MGMT Finance ---
 export interface GLAccount {
@@ -125,4 +217,39 @@ export const mgmtApi = {
   createJournal: (data: { date: string; description: string; lines: Partial<JournalLine>[] }) =>
     api.post<JournalEntry>('/mgmt/finance/journal', data),
   postJournal: (id: string) => api.post<JournalEntry>(`/mgmt/finance/journal/${id}/post`),
+  // AP/AR
+  listAP: (status?: string) => api.get<APRecord[]>(`/mgmt/finance/ap${status ? `?status=${status}` : ''}`),
+  listAR: (status?: string) => api.get<ARRecord[]>(`/mgmt/finance/ar${status ? `?status=${status}` : ''}`),
+  // HR
+  listEmployees: () => api.get<Employee[]>('/mgmt/hr/employees'),
+  createEmployee: (data: Partial<Employee>) => api.post<Employee>('/mgmt/hr/employees', data),
+  listAttendance: (params?: { employee_id?: string }) => {
+    const q = params?.employee_id ? `?employee_id=${params.employee_id}` : '';
+    return api.get<Attendance[]>(`/mgmt/hr/attendance${q}`);
+  },
+  // Approval
+  listApprovals: (status?: string) => api.get<ApprovalInstance[]>(`/mgmt/approval${status ? `?status=${status}` : ''}`),
+  listPendingApprovals: () => api.get<ApprovalInstance[]>('/mgmt/approval/pending'),
 };
+
+export interface APRecord {
+  id: string; supplier_name: string; amount: number; status: string;
+  due_date: string; paid_amount: number; created_at: string;
+}
+export interface ARRecord {
+  id: string; customer_name: string; amount: number; status: string;
+  due_date: string; received_amount: number; created_at: string;
+}
+export interface Employee {
+  id: string; employee_no: string; name: string; department: string;
+  position: string; is_active: boolean; hire_date: string;
+}
+export interface Attendance {
+  id: string; employee_id: string; employee_name?: string;
+  date: string; check_in: string; check_out: string; status: string; overtime_hours: number;
+}
+export interface ApprovalInstance {
+  id: string; business_type: string; business_id: string;
+  status: string; current_step: number; total_steps: number;
+  submitted_by: string; created_at: string;
+}
