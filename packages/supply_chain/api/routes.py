@@ -30,6 +30,9 @@ from .schemas import (
     RFQResponse,
     StatusTransition,
     StockMoveResponse,
+    StocktakeConfirmResult,
+    StocktakeCreate,
+    StocktakeResponse,
     SupplierCreate,
     SupplierListParams,
     SupplierProductCreate,
@@ -49,6 +52,7 @@ from .schemas import (
 from packages.shared.contracts.supply_chain import PurchaseRequestFromBOM
 from packages.supply_chain.services.inventory_service import InventoryService
 from packages.supply_chain.services.purchase_service import PurchaseService
+from packages.supply_chain.services.stocktake_service import StocktakeService
 from packages.supply_chain.services.supplier_service import SupplierService
 from packages.supply_chain.services.warehouse_service import WarehouseService
 
@@ -667,3 +671,76 @@ async def issue_material(
         move=StockMoveResponse.model_validate(move),
         remaining_available=inv.available,
     )
+
+
+# =========================================================================== #
+# Stocktake (盘点)
+# =========================================================================== #
+
+
+@router.post("/stocktakes", response_model=StocktakeResponse, status_code=201)
+async def create_stocktake(
+    body: StocktakeCreate,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> StocktakeResponse:
+    svc = StocktakeService(session)
+    st = await svc.create_stocktake(tenant_id, body)
+    return StocktakeResponse.model_validate(st)
+
+
+@router.get("/stocktakes/{st_id}", response_model=StocktakeResponse)
+async def get_stocktake(
+    st_id: UUID,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> StocktakeResponse:
+    svc = StocktakeService(session)
+    st = await svc.get_stocktake(tenant_id, st_id)
+    if st is None:
+        raise HTTPException(status_code=404, detail="Stocktake not found")
+    return StocktakeResponse.model_validate(st)
+
+
+@router.get("/stocktakes", response_model=list[StocktakeResponse])
+async def list_stocktakes(
+    tenant_id: UUID = Depends(_tenant_id),
+    warehouse_id: UUID | None = None,
+    session: AsyncSession = Depends(get_session),
+) -> list[StocktakeResponse]:
+    svc = StocktakeService(session)
+    items = await svc.list_stocktakes(tenant_id, warehouse_id=warehouse_id)
+    return [StocktakeResponse.model_validate(st) for st in items]
+
+
+@router.post("/stocktakes/{st_id}/confirm", response_model=StocktakeConfirmResult)
+async def confirm_stocktake(
+    st_id: UUID,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> StocktakeConfirmResult:
+    """确认盘点: 计算差异,自动创建 adjustment StockMove。"""
+    svc = StocktakeService(session)
+    try:
+        st, moves = await svc.confirm_stocktake(tenant_id, st_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return StocktakeConfirmResult(
+        stocktake=StocktakeResponse.model_validate(st),
+        adjustment_moves=[StockMoveResponse.model_validate(m) for m in moves],
+    )
+
+
+@router.post("/stocktakes/{st_id}/transition", response_model=StocktakeResponse)
+async def transition_stocktake(
+    st_id: UUID,
+    body: StatusTransition,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> StocktakeResponse:
+    svc = StocktakeService(session)
+    try:
+        st = await svc.transition_stocktake(tenant_id, st_id, body.to_status)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return StocktakeResponse.model_validate(st)

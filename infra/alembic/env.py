@@ -33,6 +33,8 @@ from packages.supply_chain.models import (  # noqa: F401
     RFQ,
     RFQLine,
     StockMove,
+    Stocktake,
+    StocktakeLine,
     Supplier,
     SupplierProduct,
     SupplierRating,

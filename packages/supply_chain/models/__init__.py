@@ -9,6 +9,7 @@ from .purchase import (
     RFQ,
     RFQLine,
 )
+from .stocktake import Stocktake, StocktakeLine
 from .supplier import Supplier, SupplierRating, SupplierTierChange
 from .supplier_product import SupplierProduct
 from .warehouse import Location, LocationLevel, Warehouse
@@ -26,6 +27,8 @@ __all__ = [
     "RFQ",
     "RFQLine",
     "StockMove",
+    "Stocktake",
+    "StocktakeLine",
     "Supplier",
     "SupplierProduct",
     "SupplierRating",

@@ -580,3 +580,57 @@ class MaterialIssueRequest(BaseModel):
 class MaterialIssueResponse(BaseModel):
     move: StockMoveResponse
     remaining_available: Decimal
+
+
+# =========================================================================== #
+# 盘点 (Stocktake)
+# =========================================================================== #
+
+
+class StocktakeLineCreate(BaseModel):
+    product_id: UUID
+    batch_no: str = ""
+    uom: str = "pcs"
+    actual_quantity: Decimal = Field(..., ge=0, max_digits=18, decimal_places=4)
+    remark: str | None = None
+
+
+class StocktakeLineResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    product_id: UUID
+    batch_no: str
+    uom: str
+    system_quantity: Decimal
+    actual_quantity: Decimal
+    variance: Decimal
+    remark: str | None = None
+
+
+class StocktakeCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    stocktake_no: str = Field(..., min_length=1, max_length=32)
+    warehouse_id: UUID
+    stocktake_date: datetime | None = None
+    remark: str | None = None
+    lines: list[StocktakeLineCreate] = Field(..., min_length=1)
+
+
+class StocktakeResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    stocktake_no: str
+    status: str
+    warehouse_id: UUID
+    stocktake_date: datetime | None = None
+    remark: str | None = None
+    lines: list[StocktakeLineResponse] = []
+    tenant_id: UUID
+
+
+class StocktakeConfirmResult(BaseModel):
+    stocktake: StocktakeResponse
+    adjustment_moves: list[StockMoveResponse]
