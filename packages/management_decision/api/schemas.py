@@ -220,6 +220,23 @@ class PayrollItemOut(BaseSchema):
     base_salary: Decimal
     overtime_pay: Decimal
     deductions: Decimal
+    gross_pay: Decimal
+    # 五险一金个人
+    pension_employee: Decimal
+    medical_employee: Decimal
+    unemployment_employee: Decimal
+    housing_fund_employee: Decimal
+    social_insurance_employee: Decimal
+    # 五险一金单位
+    pension_employer: Decimal
+    medical_employer: Decimal
+    unemployment_employer: Decimal
+    injury_employer: Decimal
+    housing_fund_employer: Decimal
+    social_insurance_employer: Decimal
+    # 个税
+    taxable_income: Decimal
+    income_tax: Decimal
     net_pay: Decimal
     memo: str | None
 

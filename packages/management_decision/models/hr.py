@@ -140,7 +140,52 @@ class PayrollItem(Base, UUIDPKMixin, TenantMixin, TimestampMixin):
         Numeric(18, 4), nullable=False, default=Decimal("0"), comment="加班费"
     )
     deductions: Mapped[Decimal] = mapped_column(
-        Numeric(18, 4), nullable=False, default=Decimal("0"), comment="扣除项"
+        Numeric(18, 4), nullable=False, default=Decimal("0"), comment="缺勤扣款"
+    )
+    gross_pay: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0"), comment="应发合计"
+    )
+    # 五险一金 — 个人
+    pension_employee: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0"), comment="养老保险(个人8%)"
+    )
+    medical_employee: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0"), comment="医疗保险(个人2%)"
+    )
+    unemployment_employee: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0"), comment="失业保险(个人0.3%)"
+    )
+    housing_fund_employee: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0"), comment="住房公积金(个人8%)"
+    )
+    social_insurance_employee: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0"), comment="五险个人合计"
+    )
+    # 五险一金 — 单位
+    pension_employer: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0"), comment="养老保险(单位16%)"
+    )
+    medical_employer: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0"), comment="医疗保险(单位8%)"
+    )
+    unemployment_employer: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0"), comment="失业保险(单位0.7%)"
+    )
+    injury_employer: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0"), comment="工伤保险(单位0.5%)"
+    )
+    housing_fund_employer: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0"), comment="住房公积金(单位8%)"
+    )
+    social_insurance_employer: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0"), comment="五险一金单位合计"
+    )
+    # 个税
+    taxable_income: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0"), comment="应纳税所得额"
+    )
+    income_tax: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0"), comment="个人所得税"
     )
     net_pay: Mapped[Decimal] = mapped_column(
         Numeric(18, 4), nullable=False, comment="实发工资"

@@ -156,11 +156,50 @@ async def run_payroll(
         get_monthly_attendance_summary,
     )
 
-    # 薪资参数: 加班费 = base / 21.75 / 8 * 1.5 * overtime_hours
-    # 缺勤扣除 = base / 21.75 * absent_days
+    # ── 薪资参数 ──
     MONTHLY_WORK_DAYS = Decimal("21.75")
     OVERTIME_RATE = Decimal("1.5")
     DAILY_HOURS = Decimal("8")
+    Q4 = Decimal("0.0001")  # 精度: 4位小数
+
+    # ── 吉林省五险一金费率 ──
+    SOCIAL_BASE_MIN = Decimal("4900")
+    SOCIAL_BASE_MAX = Decimal("26533")
+    HOUSING_BASE_MIN = Decimal("2100")
+    HOUSING_BASE_MAX = Decimal("26533")
+    # 个人
+    PENSION_EMP_RATE = Decimal("0.08")
+    MEDICAL_EMP_RATE = Decimal("0.02")
+    UNEMPLOYMENT_EMP_RATE = Decimal("0.003")
+    HOUSING_EMP_RATE = Decimal("0.08")
+    # 单位
+    PENSION_ER_RATE = Decimal("0.16")
+    MEDICAL_ER_RATE = Decimal("0.08")
+    UNEMPLOYMENT_ER_RATE = Decimal("0.007")
+    INJURY_ER_RATE = Decimal("0.005")
+    HOUSING_ER_RATE = Decimal("0.08")
+    # 个税
+    TAX_THRESHOLD = Decimal("5000")
+    TAX_BRACKETS = [
+        (Decimal("3000"), Decimal("0.03"), Decimal("0")),
+        (Decimal("12000"), Decimal("0.10"), Decimal("210")),
+        (Decimal("25000"), Decimal("0.20"), Decimal("1410")),
+        (Decimal("35000"), Decimal("0.25"), Decimal("2660")),
+        (Decimal("55000"), Decimal("0.30"), Decimal("4410")),
+        (Decimal("80000"), Decimal("0.35"), Decimal("7160")),
+        (Decimal("9999999"), Decimal("0.45"), Decimal("15160")),
+    ]
+
+    def _clamp(val: Decimal, lo: Decimal, hi: Decimal) -> Decimal:
+        return max(lo, min(hi, val))
+
+    def _calc_tax(taxable: Decimal) -> Decimal:
+        if taxable <= 0:
+            return Decimal("0")
+        for upper, rate, deduct in TAX_BRACKETS:
+            if taxable <= upper:
+                return (taxable * rate - deduct).quantize(Q4)
+        return Decimal("0")
 
     total = Decimal("0")
     for emp in employees:
@@ -168,12 +207,36 @@ async def run_payroll(
             session, tenant_id=tenant_id, employee_id=emp.id, period=period
         )
         hourly_rate = emp.base_salary / MONTHLY_WORK_DAYS / DAILY_HOURS
-        overtime_pay = (hourly_rate * OVERTIME_RATE * summary["overtime_hours"]).quantize(
-            Decimal("0.0001")
-        )
+        overtime_pay = (hourly_rate * OVERTIME_RATE * summary["overtime_hours"]).quantize(Q4)
         daily_rate = emp.base_salary / MONTHLY_WORK_DAYS
-        deductions = (daily_rate * summary["absent_days"]).quantize(Decimal("0.0001"))
-        net = emp.base_salary + overtime_pay - deductions
+        absent_deductions = (daily_rate * summary["absent_days"]).quantize(Q4)
+        gross = emp.base_salary + overtime_pay - absent_deductions
+
+        # 五险一金基数
+        social_base = _clamp(emp.base_salary, SOCIAL_BASE_MIN, SOCIAL_BASE_MAX)
+        housing_base = _clamp(emp.base_salary, HOUSING_BASE_MIN, HOUSING_BASE_MAX)
+
+        # 个人部分
+        pension_emp = (social_base * PENSION_EMP_RATE).quantize(Q4)
+        medical_emp = (social_base * MEDICAL_EMP_RATE).quantize(Q4)
+        unemployment_emp = (social_base * UNEMPLOYMENT_EMP_RATE).quantize(Q4)
+        housing_emp = (housing_base * HOUSING_EMP_RATE).quantize(Q4)
+        si_employee = pension_emp + medical_emp + unemployment_emp
+
+        # 单位部分
+        pension_er = (social_base * PENSION_ER_RATE).quantize(Q4)
+        medical_er = (social_base * MEDICAL_ER_RATE).quantize(Q4)
+        unemployment_er = (social_base * UNEMPLOYMENT_ER_RATE).quantize(Q4)
+        injury_er = (social_base * INJURY_ER_RATE).quantize(Q4)
+        housing_er = (housing_base * HOUSING_ER_RATE).quantize(Q4)
+        si_employer = pension_er + medical_er + unemployment_er + injury_er
+
+        # 个税
+        taxable_income = gross - si_employee - housing_emp - TAX_THRESHOLD
+        income_tax = _calc_tax(taxable_income)
+
+        # 实发
+        net = gross - si_employee - housing_emp - income_tax
 
         item = PayrollItem(
             id=uuid4(),
@@ -184,7 +247,21 @@ async def run_payroll(
             employee_name=emp.name,
             base_salary=emp.base_salary,
             overtime_pay=overtime_pay,
-            deductions=deductions,
+            deductions=absent_deductions,
+            gross_pay=gross,
+            pension_employee=pension_emp,
+            medical_employee=medical_emp,
+            unemployment_employee=unemployment_emp,
+            housing_fund_employee=housing_emp,
+            social_insurance_employee=si_employee,
+            pension_employer=pension_er,
+            medical_employer=medical_er,
+            unemployment_employer=unemployment_er,
+            injury_employer=injury_er,
+            housing_fund_employer=housing_er,
+            social_insurance_employer=si_employer + housing_er,
+            taxable_income=max(taxable_income, Decimal("0")),
+            income_tax=income_tax,
             net_pay=net,
         )
         payroll.items.append(item)
