@@ -964,6 +964,20 @@ router.include_router(policy_router)
 bi_router = APIRouter(prefix="/bi", tags=["bi"])
 
 
+@bi_router.get(
+    "/dashboards/exec",
+    dependencies=[Depends(require_permission("mgmt.dashboard", "read"))],
+)
+async def executive_dashboard(
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """领导驾驶舱 — 决策支持三级核心交付物。"""
+    from packages.management_decision.services.dashboard import get_executive_dashboard
+
+    return await get_executive_dashboard(session, tenant_id=user.tenant_id)
+
+
 @bi_router.post(
     "/kpis/seed",
     dependencies=[Depends(require_permission("mgmt.kpi", "create"))],
