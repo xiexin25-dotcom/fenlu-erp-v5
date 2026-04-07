@@ -1,4 +1,5 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import { useAuth } from '@/stores/auth';
 import {
   LayoutDashboard, Package, Factory, Truck, BarChart3,
@@ -17,7 +18,7 @@ const nav = [
   { to: '/mgmt/approval', icon: ShieldCheck, label: '审批中心' },
 ];
 
-export default function Layout() {
+export default function Layout({ children }: { children?: ReactNode }) {
   const user = useAuth(s => s.user);
   const logout = useAuth(s => s.logout);
   const navigate = useNavigate();
@@ -61,7 +62,7 @@ export default function Layout() {
 
       {/* Main content */}
       <main className="flex-1 overflow-auto bg-[hsl(210,40%,98%)]">
-        <Outlet />
+        {children}
       </main>
     </div>
   );

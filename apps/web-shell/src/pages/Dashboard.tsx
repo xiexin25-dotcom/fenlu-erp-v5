@@ -97,15 +97,15 @@ const scenarioData = [
 export default function Dashboard() {
   const { data: dashboard } = useQuery({
     queryKey: ['dashboard'], queryFn: dashboardApi.exec,
-    placeholderData: mockDashboard, retry: false,
+    retry: false,
   });
   const { data: kpis } = useQuery({
     queryKey: ['kpis'], queryFn: kpiApi.list,
-    placeholderData: mockKPIs, retry: false,
+    retry: false,
   });
 
-  const d = dashboard ?? mockDashboard;
-  const k = kpis ?? mockKPIs;
+  const d = dashboard && dashboard.today_revenue !== undefined ? dashboard : mockDashboard;
+  const k = kpis && kpis.length > 0 ? kpis : mockKPIs;
 
   return (
     <div className="p-6 space-y-6">
@@ -120,12 +120,12 @@ export default function Dashboard() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <StatCard title="今日营收" value={(d.today_revenue / 10000).toFixed(1)} unit="万元" icon={DollarSign} trend="up" color="bg-blue-500" />
-        <StatCard title="本周产量" value={d.weekly_output.toLocaleString()} unit="件" icon={Activity} trend="up" color="bg-green-500" />
-        <StatCard title="OEE" value={d.weekly_oee.toFixed(1)} unit="%" icon={TrendingUp} trend="up" color="bg-purple-500" />
-        <StatCard title="安全隐患" value={d.open_safety_hazards} unit="项" icon={AlertTriangle} color="bg-red-500" />
-        <StatCard title="单耗" value={d.energy_unit_consumption.toFixed(2)} unit="kWh/件" icon={Zap} trend="down" color="bg-amber-500" />
-        <StatCard title="现金头寸" value={(d.cash_position / 10000).toFixed(0)} unit="万元" icon={DollarSign} color="bg-cyan-500" />
+        <StatCard title="今日营收" value={((d.today_revenue ?? 0) / 10000).toFixed(1)} unit="万元" icon={DollarSign} trend="up" color="bg-blue-500" />
+        <StatCard title="本周产量" value={(d.weekly_output ?? 0).toLocaleString()} unit="件" icon={Activity} trend="up" color="bg-green-500" />
+        <StatCard title="OEE" value={(d.weekly_oee ?? 0).toFixed(1)} unit="%" icon={TrendingUp} trend="up" color="bg-purple-500" />
+        <StatCard title="安全隐患" value={d.open_safety_hazards ?? 0} unit="项" icon={AlertTriangle} color="bg-red-500" />
+        <StatCard title="单耗" value={(d.energy_unit_consumption ?? 0).toFixed(2)} unit="kWh/件" icon={Zap} trend="down" color="bg-amber-500" />
+        <StatCard title="现金头寸" value={((d.cash_position ?? 0) / 10000).toFixed(0)} unit="万元" icon={DollarSign} color="bg-cyan-500" />
       </div>
 
       {/* Charts Row */}
