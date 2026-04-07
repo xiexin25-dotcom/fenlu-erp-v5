@@ -48,6 +48,10 @@ from .schemas import (
     RoutingOut,
     SalesOrderLineOut,
     SalesOrderOut,
+    TicketClose,
+    TicketCreate,
+    TicketOut,
+    TicketTransition,
 )
 
 router = APIRouter(prefix="/plm", tags=["product-lifecycle"])
@@ -833,3 +837,101 @@ async def get_order_detail(
     if order is None:
         raise HTTPException(404, "order not found")
     return SalesOrderOut.model_validate(order)
+
+
+# ── ServiceTicket ─────────────────────────────────────────────────────────── #
+
+
+@router.post("/service/tickets", response_model=TicketOut, status_code=201)
+async def create_ticket(
+    body: TicketCreate,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> TicketOut:
+    from packages.product_lifecycle.services.ticket_service import (
+        create_ticket as _create,
+    )
+
+    try:
+        ticket = await _create(
+            session,
+            tenant_id=user.tenant_id,
+            user_id=user.id,
+            customer_id=body.customer_id,
+            ticket_no=body.ticket_no,
+            product_id=body.product_id,
+            description=body.description,
+        )
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+    return TicketOut.model_validate(ticket)
+
+
+@router.get("/service/tickets/{ticket_id}", response_model=TicketOut)
+async def get_ticket_detail(
+    ticket_id: UUID,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> TicketOut:
+    from packages.product_lifecycle.services.ticket_service import get_ticket
+
+    ticket = await get_ticket(session, tenant_id=user.tenant_id, ticket_id=ticket_id)
+    if ticket is None:
+        raise HTTPException(404, "ticket not found")
+    return TicketOut.model_validate(ticket)
+
+
+@router.post("/service/tickets/{ticket_id}/transition", response_model=TicketOut)
+async def transition_ticket(
+    ticket_id: UUID,
+    body: TicketTransition,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> TicketOut:
+    from packages.product_lifecycle.services.ticket_service import (
+        InvalidTicketTransitionError,
+        transition_ticket as _transition,
+    )
+
+    try:
+        ticket = await _transition(
+            session,
+            tenant_id=user.tenant_id,
+            user_id=user.id,
+            ticket_id=ticket_id,
+            target_status=body.target_status,
+        )
+    except InvalidTicketTransitionError as e:
+        raise HTTPException(422, str(e)) from e
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+    return TicketOut.model_validate(ticket)
+
+
+@router.post("/service/tickets/{ticket_id}/close", response_model=TicketOut)
+async def close_ticket(
+    ticket_id: UUID,
+    body: TicketClose,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> TicketOut:
+    from packages.product_lifecycle.services.ticket_service import (
+        InvalidTicketTransitionError,
+        close_ticket as _close,
+    )
+
+    try:
+        ticket = await _close(
+            session,
+            tenant_id=user.tenant_id,
+            user_id=user.id,
+            ticket_id=ticket_id,
+            nps_score=body.nps_score,
+        )
+    except InvalidTicketTransitionError as e:
+        raise HTTPException(422, str(e)) from e
+    except ValueError as e:
+        raise HTTPException(
+            404 if "not found" in str(e) else 422, str(e)
+        ) from e
+    return TicketOut.model_validate(ticket)

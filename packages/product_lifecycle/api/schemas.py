@@ -397,3 +397,36 @@ class SalesOrderOut(BaseModel):
     currency: str
     promised_delivery: datetime | None = None
     lines: list[SalesOrderLineOut] = []
+
+
+# ── ServiceTicket ─────────────────────────────────────────────────────────── #
+
+
+class TicketCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    customer_id: UUID
+    ticket_no: str = Field(..., max_length=64)
+    product_id: UUID | None = None
+    description: str | None = None
+
+
+class TicketOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    customer_id: UUID
+    ticket_no: str
+    product_id: UUID | None = None
+    status: str
+    description: str | None = None
+    sla_due_at: datetime | None = None
+    nps_score: int | None = None
+
+
+class TicketTransition(BaseModel):
+    target_status: str
+
+
+class TicketClose(BaseModel):
+    nps_score: int = Field(..., ge=0, le=10)

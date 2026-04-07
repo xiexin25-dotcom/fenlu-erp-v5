@@ -13,7 +13,7 @@ from uuid import UUID
 
 from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from packages.shared.db import AuditMixin, Base, TenantMixin, TimestampMixin, UUIDPKMixin
 
@@ -97,6 +97,12 @@ class Opportunity(UUIDPKMixin, TenantMixin, TimestampMixin, AuditMixin, Base):
     expected_close: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class SalesOrderStatus(StrEnum):
+    DRAFT = "draft"
+    CONFIRMED = "confirmed"
+    CANCELLED = "cancelled"
+
+
 class SalesOrder(UUIDPKMixin, TenantMixin, TimestampMixin, AuditMixin, Base):
     """销售订单。"""
 
@@ -109,13 +115,40 @@ class SalesOrder(UUIDPKMixin, TenantMixin, TimestampMixin, AuditMixin, Base):
         nullable=False,
         index=True,
     )
+    quote_id: Mapped[UUID | None] = mapped_column(PgUUID(as_uuid=True), nullable=True)
     order_no: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default="draft")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default=SalesOrderStatus.DRAFT)
     total_amount: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
     currency: Mapped[str] = mapped_column(String(8), nullable=False, default="CNY")
     promised_delivery: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
     )
+
+    lines: Mapped[list[SalesOrderLine]] = relationship(
+        "SalesOrderLine", back_populates="order", cascade="all, delete-orphan", lazy="selectin",
+    )
+
+
+class SalesOrderLine(UUIDPKMixin, TenantMixin, TimestampMixin, AuditMixin, Base):
+    """销售订单行项,匹配 SalesOrderLineDTO。"""
+
+    __tablename__ = "sales_order_lines"
+    __table_args__ = {"schema": "plm"}
+
+    order_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("plm.sales_orders.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    product_id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    uom: Mapped[str] = mapped_column(String(16), nullable=False)
+    unit_price: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    line_total: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    currency: Mapped[str] = mapped_column(String(8), nullable=False, default="CNY")
+
+    order: Mapped[SalesOrder] = relationship("SalesOrder", back_populates="lines")
 
 
 class ServiceTicket(UUIDPKMixin, TenantMixin, TimestampMixin, AuditMixin, Base):
