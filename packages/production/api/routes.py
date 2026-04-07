@@ -9,7 +9,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from packages.production.api.work_orders import router as wo_router
+
 router = APIRouter(prefix="/mfg", tags=["production"])
+router.include_router(wo_router)
 
 
 @router.get("/health")
