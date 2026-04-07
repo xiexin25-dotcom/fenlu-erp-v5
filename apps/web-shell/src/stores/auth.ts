@@ -16,10 +16,12 @@ export const useAuth = create<AuthState>((set) => ({
     const res = await authApi.login({ tenant_code, username, password });
     localStorage.setItem('token', res.access_token);
     const user = await authApi.me();
+    localStorage.setItem('tenant_id', user.tenant_id);
     set({ user });
   },
   logout: () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('tenant_id');
     set({ user: null });
   },
   loadUser: async () => {
@@ -27,6 +29,7 @@ export const useAuth = create<AuthState>((set) => ({
     if (!token) { set({ loading: false }); return; }
     try {
       const user = await authApi.me();
+      localStorage.setItem('tenant_id', user.tenant_id);
       set({ user, loading: false });
     } catch {
       localStorage.removeItem('token');

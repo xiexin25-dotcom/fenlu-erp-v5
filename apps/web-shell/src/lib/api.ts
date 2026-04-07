@@ -159,9 +159,12 @@ export interface Supplier {
 }
 export interface SupplierRating { id: string; score: number; period: string; evaluator: string; comment: string; }
 
+function tenantId() { return localStorage.getItem('tenant_id') || ''; }
+
 export const scmApi = {
   listSuppliers: (params?: { tier?: string; search?: string; skip?: number; limit?: number }) => {
     const q = new URLSearchParams();
+    q.set('tenant_id', tenantId());
     if (params?.tier) q.set('tier', params.tier);
     if (params?.search) q.set('search', params.search);
     q.set('skip', String(params?.skip ?? 0));
@@ -169,23 +172,24 @@ export const scmApi = {
     return api.get<Supplier[]>(`/scm/suppliers?${q}`);
   },
   getSupplier: (id: string) => api.get<Supplier>(`/scm/suppliers/${id}`),
-  createSupplier: (data: Partial<Supplier>) => api.post<Supplier>('/scm/suppliers', data),
-  listRatings: (supplierId: string) => api.get<SupplierRating[]>(`/scm/suppliers/${supplierId}/ratings`),
+  createSupplier: (data: Partial<Supplier>) => api.post<Supplier>(`/scm/suppliers?tenant_id=${tenantId()}`, data),
+  listRatings: (supplierId: string) => api.get<SupplierRating[]>(`/scm/suppliers/${supplierId}/ratings?tenant_id=${tenantId()}`),
   // Purchase Orders
-  listPOs: () => api.get<PurchaseOrder[]>('/scm/purchase-orders'),
+  listPOs: () => api.get<PurchaseOrder[]>(`/scm/purchase-orders?tenant_id=${tenantId()}`),
   // Warehouses
-  listWarehouses: () => api.get<Warehouse[]>('/scm/warehouses'),
-  createWarehouse: (data: Partial<Warehouse>) => api.post<Warehouse>('/scm/warehouses', data),
+  listWarehouses: () => api.get<Warehouse[]>(`/scm/warehouses?tenant_id=${tenantId()}&skip=0&limit=50`),
+  createWarehouse: (data: Partial<Warehouse>) => api.post<Warehouse>(`/scm/warehouses?tenant_id=${tenantId()}`, data),
   // Inventory
   listInventory: (params?: { product_id?: string; warehouse_id?: string }) => {
     const q = new URLSearchParams();
+    q.set('tenant_id', tenantId());
     if (params?.product_id) q.set('product_id', params.product_id);
     if (params?.warehouse_id) q.set('warehouse_id', params.warehouse_id);
     return api.get<InventoryItem[]>(`/scm/inventory?${q}`);
   },
   // Stocktake
-  listStocktakes: () => api.get<Stocktake[]>('/scm/stocktakes'),
-  createStocktake: (data: Partial<Stocktake>) => api.post<Stocktake>('/scm/stocktakes', data),
+  listStocktakes: () => api.get<Stocktake[]>(`/scm/stocktakes?tenant_id=${tenantId()}`),
+  createStocktake: (data: Partial<Stocktake>) => api.post<Stocktake>(`/scm/stocktakes?tenant_id=${tenantId()}`, data),
 };
 
 export interface PurchaseOrder {
