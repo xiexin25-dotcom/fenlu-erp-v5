@@ -1,13 +1,14 @@
 """CRM pipeline models: Lead, Opportunity, SalesOrder, ServiceTicket.
 
-TASK-PLM-006 需要这些模型用于 Customer 360 聚合。
-各模型会在后续 TASK-PLM-007/008/009 中补充完整逻辑。
+Lead 状态: new → contacted → qualified → converted / disqualified
+Opportunity 阶段: qualification → proposal → negotiation → closed_won / closed_lost
 """
 
 from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
+from enum import StrEnum
 from uuid import UUID
 
 from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text
@@ -15,6 +16,28 @@ from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from packages.shared.db import AuditMixin, Base, TenantMixin, TimestampMixin, UUIDPKMixin
+
+
+# --------------------------------------------------------------------------- #
+# Lead
+# --------------------------------------------------------------------------- #
+
+
+class LeadStatus(StrEnum):
+    NEW = "new"
+    CONTACTED = "contacted"
+    QUALIFIED = "qualified"
+    CONVERTED = "converted"
+    DISQUALIFIED = "disqualified"
+
+
+LEAD_TRANSITIONS: dict[LeadStatus, list[LeadStatus]] = {
+    LeadStatus.NEW: [LeadStatus.CONTACTED, LeadStatus.DISQUALIFIED],
+    LeadStatus.CONTACTED: [LeadStatus.QUALIFIED, LeadStatus.DISQUALIFIED],
+    LeadStatus.QUALIFIED: [LeadStatus.CONVERTED, LeadStatus.DISQUALIFIED],
+    LeadStatus.CONVERTED: [],
+    LeadStatus.DISQUALIFIED: [],
+}
 
 
 class Lead(UUIDPKMixin, TenantMixin, TimestampMixin, AuditMixin, Base):
@@ -31,7 +54,29 @@ class Lead(UUIDPKMixin, TenantMixin, TimestampMixin, AuditMixin, Base):
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     source: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default="new")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default=LeadStatus.NEW)
+
+
+# --------------------------------------------------------------------------- #
+# Opportunity
+# --------------------------------------------------------------------------- #
+
+
+class OpportunityStage(StrEnum):
+    QUALIFICATION = "qualification"
+    PROPOSAL = "proposal"
+    NEGOTIATION = "negotiation"
+    CLOSED_WON = "closed_won"
+    CLOSED_LOST = "closed_lost"
+
+
+OPPORTUNITY_TRANSITIONS: dict[OpportunityStage, list[OpportunityStage]] = {
+    OpportunityStage.QUALIFICATION: [OpportunityStage.PROPOSAL, OpportunityStage.CLOSED_LOST],
+    OpportunityStage.PROPOSAL: [OpportunityStage.NEGOTIATION, OpportunityStage.CLOSED_LOST],
+    OpportunityStage.NEGOTIATION: [OpportunityStage.CLOSED_WON, OpportunityStage.CLOSED_LOST],
+    OpportunityStage.CLOSED_WON: [],
+    OpportunityStage.CLOSED_LOST: [],
+}
 
 
 class Opportunity(UUIDPKMixin, TenantMixin, TimestampMixin, AuditMixin, Base):
@@ -47,7 +92,7 @@ class Opportunity(UUIDPKMixin, TenantMixin, TimestampMixin, AuditMixin, Base):
         index=True,
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
-    stage: Mapped[str] = mapped_column(String(32), nullable=False, default="qualification")
+    stage: Mapped[str] = mapped_column(String(32), nullable=False, default=OpportunityStage.QUALIFICATION)
     expected_amount: Mapped[Decimal | None] = mapped_column(Numeric(18, 4), nullable=True)
     expected_close: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

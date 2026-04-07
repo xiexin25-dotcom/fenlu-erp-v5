@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
@@ -25,6 +26,13 @@ from .schemas import (
     ECNCreate,
     ECNOut,
     ECNTransition,
+    FunnelOut,
+    LeadCreate,
+    LeadOut,
+    LeadTransition,
+    OpportunityCreate,
+    OpportunityOut,
+    OpportunityTransition,
     ProductCreate,
     ProductOut,
     ProductVersionCreate,
@@ -583,3 +591,125 @@ async def customer_360(
         counts=result.counts,
         recent_activities=result.recent_activities,
     )
+
+
+# ── Lead ──────────────────────────────────────────────────────────────────── #
+
+
+@router.post("/crm/leads", response_model=LeadOut, status_code=201)
+async def create_lead(
+    body: LeadCreate,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> LeadOut:
+    from packages.product_lifecycle.services.crm_service import create_lead as _create
+
+    lead = await _create(
+        session,
+        tenant_id=user.tenant_id,
+        user_id=user.id,
+        customer_id=body.customer_id,
+        title=body.title,
+        source=body.source,
+    )
+    return LeadOut.model_validate(lead)
+
+
+@router.post("/crm/leads/{lead_id}/transition", response_model=LeadOut)
+async def transition_lead(
+    lead_id: UUID,
+    body: LeadTransition,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> LeadOut:
+    from packages.product_lifecycle.services.crm_service import (
+        InvalidStageTransitionError,
+        transition_lead as _transition,
+    )
+
+    try:
+        lead = await _transition(
+            session,
+            tenant_id=user.tenant_id,
+            user_id=user.id,
+            lead_id=lead_id,
+            target_status=body.target_status,
+        )
+    except InvalidStageTransitionError as e:
+        raise HTTPException(422, str(e)) from e
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+    return LeadOut.model_validate(lead)
+
+
+# ── Opportunity ───────────────────────────────────────────────────────────── #
+
+
+@router.post("/crm/opportunities", response_model=OpportunityOut, status_code=201)
+async def create_opportunity(
+    body: OpportunityCreate,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> OpportunityOut:
+    from packages.product_lifecycle.services.crm_service import (
+        create_opportunity as _create,
+    )
+
+    opp = await _create(
+        session,
+        tenant_id=user.tenant_id,
+        user_id=user.id,
+        customer_id=body.customer_id,
+        title=body.title,
+        expected_amount=body.expected_amount,
+        expected_close=body.expected_close,
+    )
+    return OpportunityOut.model_validate(opp)
+
+
+@router.post("/crm/opportunities/{opp_id}/transition", response_model=OpportunityOut)
+async def transition_opportunity(
+    opp_id: UUID,
+    body: OpportunityTransition,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> OpportunityOut:
+    from packages.product_lifecycle.services.crm_service import (
+        InvalidStageTransitionError,
+        transition_opportunity as _transition,
+    )
+
+    try:
+        opp = await _transition(
+            session,
+            tenant_id=user.tenant_id,
+            user_id=user.id,
+            opp_id=opp_id,
+            target_stage=body.target_stage,
+        )
+    except InvalidStageTransitionError as e:
+        raise HTTPException(422, str(e)) from e
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+    return OpportunityOut.model_validate(opp)
+
+
+# ── Funnel ────────────────────────────────────────────────────────────────── #
+
+
+@router.get("/crm/funnel", response_model=FunnelOut)
+async def get_funnel(
+    user: CurrentUser,
+    period_start: datetime | None = Query(None),
+    period_end: datetime | None = Query(None),
+    session: AsyncSession = Depends(get_session),
+) -> FunnelOut:
+    from packages.product_lifecycle.services.crm_service import get_funnel as _get
+
+    result = await _get(
+        session,
+        tenant_id=user.tenant_id,
+        period_start=period_start,
+        period_end=period_end,
+    )
+    return FunnelOut(**result)

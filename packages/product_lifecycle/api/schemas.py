@@ -265,3 +265,57 @@ class Customer360Out(BaseModel):
     customer: CustomerOut
     counts: dict[str, int]
     recent_activities: list[ActivityOut]
+
+
+# ── Lead / Opportunity / Funnel ───────────────────────────────────────────── #
+
+
+class LeadCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    customer_id: UUID
+    title: str = Field(..., max_length=255)
+    source: str | None = Field(None, max_length=64)
+
+
+class LeadOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    customer_id: UUID
+    title: str
+    source: str | None = None
+    status: str
+
+
+class LeadTransition(BaseModel):
+    target_status: str
+
+
+class OpportunityCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    customer_id: UUID
+    title: str = Field(..., max_length=255)
+    expected_amount: Decimal | None = Field(None, ge=0, max_digits=18, decimal_places=4)
+    expected_close: datetime | None = None
+
+
+class OpportunityOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    customer_id: UUID
+    title: str
+    stage: str
+    expected_amount: Decimal | None = None
+    expected_close: datetime | None = None
+
+
+class OpportunityTransition(BaseModel):
+    target_stage: str
+
+
+class FunnelOut(BaseModel):
+    leads: dict[str, int]
+    opportunities: dict[str, int]
