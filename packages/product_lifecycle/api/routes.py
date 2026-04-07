@@ -21,6 +21,10 @@ from .schemas import (
     ProductOut,
     ProductVersionCreate,
     ProductVersionOut,
+    RoutingCreate,
+    RoutingOperationCreate,
+    RoutingOperationOut,
+    RoutingOut,
 )
 
 router = APIRouter(prefix="/plm", tags=["product-lifecycle"])
@@ -316,3 +320,94 @@ async def list_cad_attachments(
 
     items = await _list(session, tenant_id=user.tenant_id, product_id=product_id)
     return [CadAttachmentOut.model_validate(a) for a in items]
+
+
+# ── Routing ───────────────────────────────────────────────────────────────── #
+
+
+def _routing_to_out(routing: object) -> RoutingOut:
+    from packages.product_lifecycle.models import Routing as RoutingModel
+
+    assert isinstance(routing, RoutingModel)
+    ops = [RoutingOperationOut.model_validate(op) for op in routing.operations]
+    total = sum(op.standard_minutes for op in ops)
+    return RoutingOut(
+        id=routing.id,
+        product_id=routing.product_id,
+        version=routing.version,
+        description=routing.description,
+        operations=ops,
+        total_standard_minutes=total,
+        created_at=routing.created_at,
+        updated_at=routing.updated_at,
+    )
+
+
+@router.post("/routing", response_model=RoutingOut, status_code=201)
+async def create_routing(
+    body: RoutingCreate,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> RoutingOut:
+    from packages.product_lifecycle.services.routing_service import (
+        create_routing as _create,
+        get_routing,
+    )
+
+    routing = await _create(
+        session,
+        tenant_id=user.tenant_id,
+        user_id=user.id,
+        product_id=body.product_id,
+        version=body.version,
+        description=body.description,
+    )
+    routing = await get_routing(session, tenant_id=user.tenant_id, routing_id=routing.id)
+    assert routing is not None
+    return _routing_to_out(routing)
+
+
+@router.get("/routing/{routing_id}", response_model=RoutingOut)
+async def get_routing_detail(
+    routing_id: UUID,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> RoutingOut:
+    """供 Lane 2 APS 排程调用。"""
+    from packages.product_lifecycle.services.routing_service import get_routing
+
+    routing = await get_routing(session, tenant_id=user.tenant_id, routing_id=routing_id)
+    if routing is None:
+        raise HTTPException(404, "routing not found")
+    return _routing_to_out(routing)
+
+
+@router.post(
+    "/routing/{routing_id}/operations",
+    response_model=RoutingOperationOut,
+    status_code=201,
+)
+async def add_routing_operation(
+    routing_id: UUID,
+    body: RoutingOperationCreate,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> RoutingOperationOut:
+    from packages.product_lifecycle.services.routing_service import add_operation
+
+    try:
+        op = await add_operation(
+            session,
+            tenant_id=user.tenant_id,
+            user_id=user.id,
+            routing_id=routing_id,
+            sequence=body.sequence,
+            operation_code=body.operation_code,
+            operation_name=body.operation_name,
+            standard_minutes=body.standard_minutes,
+            setup_minutes=body.setup_minutes,
+            workstation_code=body.workstation_code,
+        )
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+    return RoutingOperationOut.model_validate(op)

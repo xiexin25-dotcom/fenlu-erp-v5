@@ -19,6 +19,8 @@ from packages.product_lifecycle.models import (  # noqa: F401
     CadAttachment,
     Product,
     ProductVersion,
+    Routing,
+    RoutingOperation,
 )
 from packages.shared.models import (  # noqa: F401
     Organization,

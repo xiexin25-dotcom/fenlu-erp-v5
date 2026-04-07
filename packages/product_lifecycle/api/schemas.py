@@ -122,3 +122,50 @@ class CadAttachmentOut(BaseModel):
     content_type: str
     file_size: int
     checksum: str
+
+
+# ── Routing ───────────────────────────────────────────────────────────────── #
+
+
+class RoutingCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    product_id: UUID
+    version: str = Field(..., max_length=32)
+    description: str | None = None
+
+
+class RoutingOperationCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    sequence: int = Field(..., ge=1)
+    operation_code: str = Field(..., max_length=64)
+    operation_name: str = Field(..., max_length=200)
+    workstation_code: str | None = Field(None, max_length=64)
+    standard_minutes: float = Field(..., ge=0)
+    setup_minutes: float = Field(0.0, ge=0)
+
+
+class RoutingOperationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    sequence: int
+    operation_code: str
+    operation_name: str
+    workstation_code: str | None = None
+    standard_minutes: float
+    setup_minutes: float
+
+
+class RoutingOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    product_id: UUID
+    version: str
+    description: str | None = None
+    operations: list[RoutingOperationOut] = []
+    total_standard_minutes: float = 0.0
+    created_at: datetime
+    updated_at: datetime
