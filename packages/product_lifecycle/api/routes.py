@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.shared.auth import CurrentUser
@@ -16,6 +16,7 @@ from .schemas import (
     BOMItemCreate,
     BOMItemOut,
     BOMOut,
+    CadAttachmentOut,
     ProductCreate,
     ProductOut,
     ProductVersionCreate,
@@ -260,3 +261,58 @@ async def add_bom_item(
             )
     # fallback (shouldn't happen)
     return BOMItemOut.model_validate(item)
+
+
+# ── CAD Attachments ───────────────────────────────────────────────────────── #
+
+
+@router.post(
+    "/products/{product_id}/cad",
+    response_model=CadAttachmentOut,
+    status_code=201,
+)
+async def upload_cad(
+    product_id: UUID,
+    file: UploadFile,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> CadAttachmentOut:
+    from packages.product_lifecycle.services.cad_service import upload_cad as _upload
+
+    if not file.filename:
+        raise HTTPException(400, "filename is required")
+
+    file_data = await file.read()
+    if len(file_data) == 0:
+        raise HTTPException(400, "empty file")
+
+    try:
+        attachment = await _upload(
+            session,
+            tenant_id=user.tenant_id,
+            user_id=user.id,
+            product_id=product_id,
+            filename=file.filename,
+            file_data=file_data,
+            content_type=file.content_type or "application/octet-stream",
+        )
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+    return CadAttachmentOut.model_validate(attachment)
+
+
+@router.get(
+    "/products/{product_id}/cad",
+    response_model=list[CadAttachmentOut],
+)
+async def list_cad_attachments(
+    product_id: UUID,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> list[CadAttachmentOut]:
+    from packages.product_lifecycle.services.cad_service import (
+        list_cad_attachments as _list,
+    )
+
+    items = await _list(session, tenant_id=user.tenant_id, product_id=product_id)
+    return [CadAttachmentOut.model_validate(a) for a in items]

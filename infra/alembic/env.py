@@ -13,7 +13,13 @@ from alembic import context
 
 # 必须 import 所有模型才能让 autogenerate 看到
 from packages.shared.db import Base
-from packages.product_lifecycle.models import BOM, BOMItem, Product, ProductVersion  # noqa: F401
+from packages.product_lifecycle.models import (  # noqa: F401
+    BOM,
+    BOMItem,
+    CadAttachment,
+    Product,
+    ProductVersion,
+)
 from packages.shared.models import (  # noqa: F401
     Organization,
     OrganizationType,

@@ -106,3 +106,19 @@ class BOMOut(BaseModel):
     total_cost: Money | None = None
     created_at: datetime
     updated_at: datetime
+
+
+# ── CAD Attachments ───────────────────────────────────────────────────────── #
+
+
+class CadAttachmentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    product_id: UUID
+    version: str
+    filename: str
+    object_key: str
+    content_type: str
+    file_size: int
+    checksum: str
