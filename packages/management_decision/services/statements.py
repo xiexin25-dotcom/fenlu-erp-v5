@@ -94,14 +94,16 @@ async def _account_balances(
     }
 
     for code, name, acct_type, total_debit, total_credit in rows:
+        # Normalize case (DB may store ASSET, model uses asset)
+        at = acct_type.lower() if isinstance(acct_type, str) else str(acct_type)
         # 资产/费用: 余额 = 借方 - 贷方
         # 负债/权益/收入: 余额 = 贷方 - 借方
-        if acct_type in (AccountType.ASSET, AccountType.EXPENSE):
+        if at in (AccountType.ASSET, AccountType.EXPENSE):
             balance = total_debit - total_credit
         else:
             balance = total_credit - total_debit
 
-        result.setdefault(acct_type, []).append({
+        result.setdefault(at, []).append({
             "code": code,
             "name": name,
             "balance": float(balance),
