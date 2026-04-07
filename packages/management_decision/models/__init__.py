@@ -8,6 +8,7 @@ from .approval import (
     StepStatus,
 )
 from .attendance import Attendance, AttendanceStatus
+from .casbin_rule import CasbinRule
 from .finance import AccountType, GLAccount, JournalEntry, JournalLine, JournalStatus
 from .hr import Employee, Payroll, PayrollItem, PayrollStatus
 
@@ -22,6 +23,7 @@ __all__ = [
     "ApprovalStep",
     "Attendance",
     "AttendanceStatus",
+    "CasbinRule",
     "Employee",
     "GLAccount",
     "InstanceStatus",

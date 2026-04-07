@@ -356,3 +356,35 @@ class ApprovalInstanceOut(BaseSchema):
     total_steps: int
     completed_at: datetime | None
     steps: list[ApprovalStepOut]
+
+
+# --------------------------------------------------------------------------- #
+# Casbin Policy (权限策略)
+# --------------------------------------------------------------------------- #
+
+
+class CasbinRuleCreate(BaseSchema):
+    ptype: str = Field("p", description="p=policy, g=grouping")
+    v0: str = ""
+    v1: str = ""
+    v2: str = ""
+    v3: str = ""
+    v4: str = ""
+    v5: str = ""
+
+
+class CasbinRuleOut(BaseSchema):
+    id: UUID
+    ptype: str
+    v0: str
+    v1: str
+    v2: str
+    v3: str
+    v4: str
+    v5: str
+
+
+class CasbinRoleAssign(BaseSchema):
+    user_id: UUID
+    role: str = Field(..., description="角色名,如 role:admin")
+    tenant_id: UUID

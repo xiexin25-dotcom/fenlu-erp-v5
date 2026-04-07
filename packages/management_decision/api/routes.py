@@ -30,6 +30,9 @@ from .schemas import (
     AttendanceImportRequest,
     AttendanceImportResult,
     AttendanceOut,
+    CasbinRoleAssign,
+    CasbinRuleCreate,
+    CasbinRuleOut,
     EmployeeCreate,
     EmployeeOut,
     EmployeeUpdate,
@@ -863,3 +866,90 @@ async def get_instance_api(
 
 
 router.include_router(approval_router)
+
+
+# =========================================================================== #
+# Casbin Policy Management (权限策略)
+# =========================================================================== #
+
+policy_router = APIRouter(prefix="/policy", tags=["casbin"])
+
+
+@policy_router.get(
+    "/rules",
+    response_model=list[CasbinRuleOut],
+    dependencies=[Depends(require_permission("mgmt.casbin", "read"))],
+)
+async def list_rules(
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> list[CasbinRuleOut]:
+    from packages.management_decision.services.enforcer import list_policies
+
+    rules = await list_policies(session)
+    return [CasbinRuleOut.model_validate(r) for r in rules]
+
+
+@policy_router.post(
+    "/rules",
+    response_model=CasbinRuleOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_permission("mgmt.casbin", "create"))],
+)
+async def add_rule(
+    body: CasbinRuleCreate,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> CasbinRuleOut:
+    from packages.management_decision.services.enforcer import add_policy
+
+    rule = await add_policy(
+        session,
+        ptype=body.ptype,
+        v0=body.v0,
+        v1=body.v1,
+        v2=body.v2,
+        v3=body.v3,
+        v4=body.v4,
+        v5=body.v5,
+    )
+    return CasbinRuleOut.model_validate(rule)
+
+
+@policy_router.post(
+    "/role-assign",
+    response_model=CasbinRuleOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_permission("mgmt.casbin", "create"))],
+)
+async def assign_role(
+    body: CasbinRoleAssign,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> CasbinRuleOut:
+    from packages.management_decision.services.enforcer import add_role_for_user
+
+    rule = await add_role_for_user(
+        session,
+        user_id=str(body.user_id),
+        role=body.role,
+        tenant_id=str(body.tenant_id),
+    )
+    return CasbinRuleOut.model_validate(rule)
+
+
+@policy_router.post(
+    "/reload",
+    dependencies=[Depends(require_permission("mgmt.casbin", "admin"))],
+)
+async def reload_policies(
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, int]:
+    from packages.management_decision.services.enforcer import load_policies_from_db
+
+    count = await load_policies_from_db(session)
+    return {"loaded": count}
+
+
+router.include_router(policy_router)
