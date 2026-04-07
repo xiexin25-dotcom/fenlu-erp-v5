@@ -511,6 +511,18 @@ async def transition_ecn(
 # ── Customer / CRM ────────────────────────────────────────────────────────── #
 
 
+@router.get("/customers", response_model=list[CustomerOut])
+async def list_customers(
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+) -> list[CustomerOut]:
+    from packages.product_lifecycle.services.customer_service import list_customers as _list
+    customers = await _list(session, tenant_id=user.tenant_id, skip=skip, limit=limit)
+    return [CustomerOut.model_validate(c) for c in customers]
+
+
 @router.post("/customers", response_model=CustomerOut, status_code=201)
 async def create_customer(
     body: CustomerCreate,

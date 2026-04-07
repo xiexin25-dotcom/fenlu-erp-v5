@@ -59,6 +59,24 @@ async def create_customer(
     return customer
 
 
+async def list_customers(
+    session: AsyncSession,
+    *,
+    tenant_id: UUID,
+    skip: int = 0,
+    limit: int = 50,
+) -> list[Customer]:
+    result = await session.execute(
+        select(Customer)
+        .options(selectinload(Customer.contacts))
+        .where(Customer.tenant_id == tenant_id)
+        .order_by(Customer.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    return list(result.scalars().all())
+
+
 async def get_customer(
     session: AsyncSession,
     *,
