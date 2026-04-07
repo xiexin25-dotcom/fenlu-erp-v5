@@ -17,11 +17,17 @@ from packages.product_lifecycle.models import (  # noqa: F401
     BOM,
     BOMItem,
     CadAttachment,
+    Contact,
+    Customer,
     ECN,
+    Lead,
+    Opportunity,
     Product,
     ProductVersion,
     Routing,
     RoutingOperation,
+    SalesOrder,
+    ServiceTicket,
 )
 from packages.shared.models import (  # noqa: F401
     Organization,

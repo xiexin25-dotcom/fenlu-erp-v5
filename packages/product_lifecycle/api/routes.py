@@ -17,6 +17,11 @@ from .schemas import (
     BOMItemOut,
     BOMOut,
     CadAttachmentOut,
+    ContactCreate,
+    ContactOut,
+    Customer360Out,
+    CustomerCreate,
+    CustomerOut,
     ECNCreate,
     ECNOut,
     ECNTransition,
@@ -482,3 +487,99 @@ async def transition_ecn(
     except ValueError as e:
         raise HTTPException(404, str(e)) from e
     return ECNOut.model_validate(ecn)
+
+
+# ── Customer / CRM ────────────────────────────────────────────────────────── #
+
+
+@router.post("/customers", response_model=CustomerOut, status_code=201)
+async def create_customer(
+    body: CustomerCreate,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> CustomerOut:
+    from packages.product_lifecycle.services.customer_service import (
+        create_customer as _create,
+        get_customer,
+    )
+
+    cust = await _create(
+        session,
+        tenant_id=user.tenant_id,
+        user_id=user.id,
+        code=body.code,
+        name=body.name,
+        kind=body.kind,
+        rating=body.rating,
+        is_online=body.is_online,
+        address=body.address,
+    )
+    # re-fetch with selectinload(contacts)
+    cust = await get_customer(session, tenant_id=user.tenant_id, customer_id=cust.id)
+    assert cust is not None
+    return CustomerOut.model_validate(cust)
+
+
+@router.get("/customers/{customer_id}", response_model=CustomerOut)
+async def get_customer_detail(
+    customer_id: UUID,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> CustomerOut:
+    from packages.product_lifecycle.services.customer_service import get_customer
+
+    cust = await get_customer(session, tenant_id=user.tenant_id, customer_id=customer_id)
+    if cust is None:
+        raise HTTPException(404, "customer not found")
+    return CustomerOut.model_validate(cust)
+
+
+@router.post(
+    "/customers/{customer_id}/contacts",
+    response_model=ContactOut,
+    status_code=201,
+)
+async def add_contact(
+    customer_id: UUID,
+    body: ContactCreate,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> ContactOut:
+    from packages.product_lifecycle.services.customer_service import (
+        add_contact as _add,
+    )
+
+    contact = await _add(
+        session,
+        tenant_id=user.tenant_id,
+        user_id=user.id,
+        customer_id=customer_id,
+        name=body.name,
+        title=body.title,
+        phone=body.phone,
+        email=body.email,
+        is_primary=body.is_primary,
+    )
+    return ContactOut.model_validate(contact)
+
+
+@router.get("/customers/{customer_id}/360", response_model=Customer360Out)
+async def customer_360(
+    customer_id: UUID,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> Customer360Out:
+    from packages.product_lifecycle.services.customer_service import (
+        get_customer_360,
+    )
+
+    result = await get_customer_360(
+        session, tenant_id=user.tenant_id, customer_id=customer_id,
+    )
+    if result is None:
+        raise HTTPException(404, "customer not found")
+    return Customer360Out(
+        customer=CustomerOut.model_validate(result.customer),
+        counts=result.counts,
+        recent_activities=result.recent_activities,
+    )

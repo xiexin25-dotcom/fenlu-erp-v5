@@ -202,3 +202,66 @@ class ECNOut(BaseModel):
     description: str | None = None
     created_at: datetime
     updated_at: datetime
+
+
+# ── Customer / CRM ────────────────────────────────────────────────────────── #
+
+
+class CustomerCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    code: str = Field(..., max_length=64)
+    name: str = Field(..., max_length=255)
+    kind: str = Field(..., pattern=r"^(b2b|b2c)$")
+    rating: str | None = Field(None, max_length=8)
+    is_online: bool = False
+    address: str | None = None
+
+
+class ContactCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    name: str = Field(..., max_length=128)
+    title: str | None = Field(None, max_length=64)
+    phone: str | None = Field(None, max_length=32)
+    email: str | None = Field(None, max_length=255)
+    is_primary: bool = False
+
+
+class ContactOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    title: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    is_primary: bool
+
+
+class CustomerOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    tenant_id: UUID
+    code: str
+    name: str
+    kind: str
+    rating: str | None = None
+    is_online: bool
+    address: str | None = None
+    contacts: list[ContactOut] = []
+
+
+class ActivityOut(BaseModel):
+    type: str
+    id: str
+    title: str
+    status: str
+    created_at: str
+
+
+class Customer360Out(BaseModel):
+    customer: CustomerOut
+    counts: dict[str, int]
+    recent_activities: list[ActivityOut]
