@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Clock } from 'lucide-react';
 import { mgmtApi, api, type Attendance } from '@/lib/api';
 import DataTable, { type Column } from '@/components/DataTable';
 import PageHeader from '@/components/PageHeader';
 import StatusBadge from '@/components/StatusBadge';
+import FormDialog, { FormField, FormInput, FormSelect } from '@/components/FormDialog';
 
 function num(v: unknown): number {
   if (typeof v === 'number') return v;
@@ -21,15 +22,26 @@ function timeStr(v: unknown): string {
 }
 
 export default function AttendanceList() {
+  const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['attendance'], queryFn: () => mgmtApi.listAttendance() });
   const { data: empData } = useQuery({ queryKey: ['employees-all'], queryFn: () => api.get<Array<{ id: string; name: string; employee_no: string }>>('/mgmt/hr/employees') });
 
+  const [open, setOpen] = useState(false);
+  const [employeeId, setEmployeeId] = useState('');
+  const [workDate, setWorkDate] = useState('');
+  const [clockIn, setClockIn] = useState('');
+  const [clockOut, setClockOut] = useState('');
+
+  const empList = useMemo(() => {
+    const items = Array.isArray(empData) ? empData : (empData as unknown as { items?: Array<{ id: string; name: string; employee_no: string }> })?.items || [];
+    return items;
+  }, [empData]);
+
   const empMap = useMemo(() => {
     const m: Record<string, string> = {};
-    const items = Array.isArray(empData) ? empData : (empData as unknown as { items?: Array<{ id: string; name: string; employee_no: string }> })?.items || [];
-    for (const e of items) m[e.id] = `${e.name} (${e.employee_no})`;
+    for (const e of empList) m[e.id] = `${e.name} (${e.employee_no})`;
     return m;
-  }, [empData]);
+  }, [empList]);
 
   const columns: Column<Attendance>[] = [
     { key: 'employee', header: '员工', render: r => empMap[r.employee_id] || r.employee_id?.slice(0, 8) },
@@ -57,10 +69,48 @@ export default function AttendanceList() {
     { key: 'status', header: '状态', render: r => <StatusBadge status={r.status} /> },
   ];
 
+  const handleCreate = async () => {
+    await mgmtApi.createAttendance({
+      employee_id: employeeId,
+      work_date: workDate,
+      clock_in: clockIn,
+      clock_out: clockOut,
+    });
+    qc.invalidateQueries({ queryKey: ['attendance'] });
+    setEmployeeId('');
+    setWorkDate('');
+    setClockIn('');
+    setClockOut('');
+  };
+
   return (
     <div className="p-8 max-w-[1200px] mx-auto">
-      <PageHeader title="考勤管理" subtitle="打卡 + 加班" icon={<Clock size={22} strokeWidth={1.5} />} />
+      <PageHeader
+        title="考勤管理"
+        subtitle="打卡 + 加班"
+        icon={<Clock size={22} strokeWidth={1.5} />}
+        actionLabel="新建"
+        onAction={() => setOpen(true)}
+      />
       <DataTable<Attendance> columns={columns} data={data || []} loading={isLoading} />
+
+      <FormDialog open={open} onClose={() => setOpen(false)} title="新建考勤" onSubmit={handleCreate}>
+        <FormField label="员工">
+          <FormSelect value={employeeId} onChange={e => setEmployeeId(e.target.value)} required>
+            <option value="">请选择员工</option>
+            {empList.map(e => <option key={e.id} value={e.id}>{e.name} ({e.employee_no})</option>)}
+          </FormSelect>
+        </FormField>
+        <FormField label="日期">
+          <FormInput type="date" value={workDate} onChange={e => setWorkDate(e.target.value)} required />
+        </FormField>
+        <FormField label="签到时间">
+          <FormInput type="time" value={clockIn} onChange={e => setClockIn(e.target.value)} required />
+        </FormField>
+        <FormField label="签退时间">
+          <FormInput type="time" value={clockOut} onChange={e => setClockOut(e.target.value)} required />
+        </FormField>
+      </FormDialog>
     </div>
   );
 }

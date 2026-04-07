@@ -180,6 +180,7 @@ export const scmApi = {
     const r = await api.get<{ items: PurchaseOrder[] } | PurchaseOrder[]>(`/scm/purchase-orders?tenant_id=${tenantId()}`);
     return Array.isArray(r) ? r : r.items || [];
   },
+  createPO: (data: Record<string, unknown>) => api.post<PurchaseOrder>(`/scm/purchase-orders?tenant_id=${tenantId()}`, data),
   // Warehouses
   listWarehouses: async () => {
     const r = await api.get<{ items: Warehouse[] } | Warehouse[]>(`/scm/warehouses?tenant_id=${tenantId()}&skip=0&limit=50`);
@@ -201,6 +202,7 @@ export const scmApi = {
     return Array.isArray(r) ? r : r.items || [];
   },
   createStocktake: (data: Partial<Stocktake>) => api.post<Stocktake>(`/scm/stocktakes?tenant_id=${tenantId()}`, data),
+  receive: (data: Record<string, unknown>) => api.post<unknown>(`/scm/receive?tenant_id=${tenantId()}`, data),
 };
 
 export interface PurchaseOrder {
@@ -252,6 +254,7 @@ export const mgmtApi = {
     const q = params?.employee_id ? `?employee_id=${params.employee_id}` : '';
     return api.get<Attendance[]>(`/mgmt/hr/attendance${q}`);
   },
+  createAttendance: (data: Record<string, unknown>) => api.post<Attendance>('/mgmt/hr/attendance', data),
   // Approval
   listApprovals: (status?: string) => api.get<ApprovalInstance[]>(`/mgmt/approval${status ? `?status=${status}` : ''}`),
   listPendingApprovals: () => api.get<ApprovalInstance[]>('/mgmt/approval/pending'),

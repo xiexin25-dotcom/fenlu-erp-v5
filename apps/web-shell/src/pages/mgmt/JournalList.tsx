@@ -1,9 +1,11 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BookOpen } from 'lucide-react';
-import { mgmtApi, type JournalEntry } from '@/lib/api';
+import { mgmtApi, type JournalEntry, type GLAccount } from '@/lib/api';
 import DataTable, { type Column } from '@/components/DataTable';
 import PageHeader from '@/components/PageHeader';
 import StatusBadge from '@/components/StatusBadge';
+import FormDialog, { FormField, FormInput, FormSelect } from '@/components/FormDialog';
 
 function money(v: unknown): number {
   if (typeof v === 'number') return v;
@@ -55,12 +57,81 @@ const columns: Column<JournalEntry>[] = [
 ];
 
 export default function JournalList() {
+  const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['journals'], queryFn: mgmtApi.listJournals });
+  const { data: accounts } = useQuery({ queryKey: ['gl-accounts'], queryFn: mgmtApi.listAccounts });
+
+  const [open, setOpen] = useState(false);
+  const [entryDate, setEntryDate] = useState('');
+  const [memo, setMemo] = useState('');
+  const [debitAccountId, setDebitAccountId] = useState('');
+  const [debitAmount, setDebitAmount] = useState('');
+  const [creditAccountId, setCreditAccountId] = useState('');
+  const [creditAmount, setCreditAmount] = useState('');
+
+  const handleCreate = async () => {
+    await mgmtApi.createJournal({
+      date: entryDate,
+      description: memo,
+      lines: [
+        { account_id: debitAccountId, debit_amount: Number(debitAmount) || 0, credit_amount: 0, description: memo },
+        { account_id: creditAccountId, debit_amount: 0, credit_amount: Number(creditAmount) || 0, description: memo },
+      ],
+    });
+    qc.invalidateQueries({ queryKey: ['journals'] });
+    setEntryDate('');
+    setMemo('');
+    setDebitAccountId('');
+    setDebitAmount('');
+    setCreditAccountId('');
+    setCreditAmount('');
+  };
+
+  const acctList = (accounts || []) as GLAccount[];
 
   return (
     <div className="p-8 max-w-[1200px] mx-auto">
-      <PageHeader title="记账凭证" subtitle="Journal Entries" icon={<BookOpen size={22} strokeWidth={1.5} />} />
+      <PageHeader
+        title="记账凭证"
+        subtitle="Journal Entries"
+        icon={<BookOpen size={22} strokeWidth={1.5} />}
+        actionLabel="新建"
+        onAction={() => setOpen(true)}
+      />
       <DataTable<JournalEntry> columns={columns} data={data || []} loading={isLoading} />
+
+      <FormDialog open={open} onClose={() => setOpen(false)} title="新建凭证" onSubmit={handleCreate}>
+        <FormField label="日期">
+          <FormInput type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)} required />
+        </FormField>
+        <FormField label="摘要">
+          <FormInput value={memo} onChange={e => setMemo(e.target.value)} placeholder="请输入凭证摘要" required />
+        </FormField>
+        <div style={{ borderTop: '1px solid var(--divider)', paddingTop: '12px', marginTop: '4px' }}>
+          <p className="text-[13px] font-medium mb-3" style={{ color: 'var(--fg-secondary)' }}>借方</p>
+        </div>
+        <FormField label="借方科目">
+          <FormSelect value={debitAccountId} onChange={e => setDebitAccountId(e.target.value)} required>
+            <option value="">请选择科目</option>
+            {acctList.map(a => <option key={a.id} value={a.id}>{a.code} - {a.name}</option>)}
+          </FormSelect>
+        </FormField>
+        <FormField label="借方金额">
+          <FormInput type="number" value={debitAmount} onChange={e => setDebitAmount(e.target.value)} placeholder="0.00" min="0" step="0.01" required />
+        </FormField>
+        <div style={{ borderTop: '1px solid var(--divider)', paddingTop: '12px', marginTop: '4px' }}>
+          <p className="text-[13px] font-medium mb-3" style={{ color: 'var(--fg-secondary)' }}>贷方</p>
+        </div>
+        <FormField label="贷方科目">
+          <FormSelect value={creditAccountId} onChange={e => setCreditAccountId(e.target.value)} required>
+            <option value="">请选择科目</option>
+            {acctList.map(a => <option key={a.id} value={a.id}>{a.code} - {a.name}</option>)}
+          </FormSelect>
+        </FormField>
+        <FormField label="贷方金额">
+          <FormInput type="number" value={creditAmount} onChange={e => setCreditAmount(e.target.value)} placeholder="0.00" min="0" step="0.01" required />
+        </FormField>
+      </FormDialog>
     </div>
   );
 }
