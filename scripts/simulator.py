@@ -130,17 +130,19 @@ class API:
             return []  # 返回空列表表示无数据或不支持
         return r.json()
 
-    def post(self, path: str, json: dict | None = None, params: dict | None = None):
+    def post(self, path: str, json: dict | None = None, params: dict | None = None, silent: bool = False):
         r = self.client.post(f"{self.base}{path}", headers=self._headers(), json=json, params=params)
         if r.status_code >= 400:
-            print(f"    WARN: POST {path} → {r.status_code}: {r.text[:200]}")
+            if not silent:
+                print(f"    WARN: POST {path} → {r.status_code}: {r.text[:120]}")
             return None
         return r.json()
 
-    def patch(self, path: str, json: dict | None = None):
+    def patch(self, path: str, json: dict | None = None, silent: bool = False):
         r = self.client.patch(f"{self.base}{path}", headers=self._headers(), json=json)
         if r.status_code >= 400:
-            print(f"    WARN: PATCH {path} → {r.status_code}: {r.text[:200]}")
+            if not silent:
+                print(f"    WARN: PATCH {path} → {r.status_code}: {r.text[:120]}")
             return None
         return r.json()
 
@@ -160,6 +162,7 @@ class State:
         self.bom_ids: list[str] = []
         self.routing_ids: list[str] = []
         self.work_order_ids: list[str] = []  # 活跃工单
+        self.attendance_done: set[tuple[str, str]] = set()  # (employee_id, date) 已打卡
         self.wo_counter = 0
         self.po_counter = 0
         self.pr_counter = 0
@@ -352,21 +355,24 @@ def sim_work_order(api: API, state: State):
 
 
 def sim_wo_transition(api: API, state: State):
-    """推进一个工单的状态"""
+    """推进一个工单的状态（跳过 planned→released，因为需要 BOM 验证连 Lane 1）"""
     if not state.work_order_ids:
         return
     wid = random.choice(state.work_order_ids)
     wo = api.get(f"/mfg/work-orders/{wid}")
-    if not wo:
+    if not wo or not isinstance(wo, dict):
         return
-    flow = {"planned": "released", "released": "in_progress", "in_progress": "completed", "completed": "closed"}
-    next_s = flow.get(wo.get("status", ""))
-    if next_s:
-        r = api.patch(f"/mfg/work-orders/{wid}/status", {"status": next_s})
-        if r:
-            print(f"  [MFG] 工单 {wo.get('order_no','')} {wo['status']} → {next_s}")
-        if next_s == "closed":
-            state.work_order_ids.remove(wid)
+    status = wo.get("status", "")
+    # Skip planned→released (needs Lane 1 BOM server)
+    flow = {"released": "in_progress", "in_progress": "completed", "completed": "closed"}
+    next_s = flow.get(status)
+    if not next_s:
+        return
+    r = api.patch(f"/mfg/work-orders/{wid}/status", {"status": next_s})
+    if r:
+        print(f"  [MFG] 工单 {wo.get('order_no','')} {status} → {next_s}")
+    if next_s == "closed" and wid in state.work_order_ids:
+        state.work_order_ids.remove(wid)
 
 
 def sim_qc_inspection(api: API, state: State):
@@ -374,8 +380,9 @@ def sim_qc_inspection(api: API, state: State):
     if not state.product_ids:
         return
     state.insp_counter += 1
-    result = random.choices(["pass", "fail", "conditional"], weights=[85, 10, 5])[0]
-    defects = 0 if result == "pass" else random.randint(1, 10)
+    # Note: "fail" triggers QCFailedEvent which needs Redis/event infra — use mostly pass/conditional
+    result = random.choices(["pass", "conditional"], weights=[92, 8])[0]
+    defects = 0 if result == "pass" else random.randint(1, 5)
     uid = uuid4().hex[:6]
     r = api.post("/mfg/qc/inspections", {
         "inspection_no": f"QC-{uid}",
@@ -402,7 +409,7 @@ def sim_safety_hazard(api: API, state: State):
         "location": loc,
         "level": level,
         "description": f"发现{level}级隐患于{loc}",
-    })
+    }, silent=True)  # may fail due to event emission
     if r:
         print(f"  [EHS] 安全隐患 [{level}] {loc}")
 
@@ -445,11 +452,16 @@ def sim_journal(api: API, state: State):
 
 
 def sim_attendance(api: API, state: State):
-    """考勤打卡"""
+    """考勤打卡 — 使用随机历史日期避免同日重复"""
     if not state.employee_ids:
         return
     eid = random.choice(state.employee_ids)
-    today = datetime.now().strftime("%Y-%m-%d")
+    # 随机过去30天中的一天，减少同一员工+同一天重复
+    day_offset = random.randint(0, 30)
+    work_date = (datetime.now() - timedelta(days=day_offset)).strftime("%Y-%m-%d")
+    # 跳过已打卡的
+    if (eid, work_date) in state.attendance_done:
+        return
     clock_in_h = random.choices([7, 8, 8, 8, 9], weights=[5, 70, 10, 10, 5])[0]
     clock_in_m = random.randint(0, 59)
     clock_out_h = random.choices([17, 17, 18, 19, 20], weights=[10, 50, 25, 10, 5])[0]
@@ -457,16 +469,16 @@ def sim_attendance(api: API, state: State):
     overtime = max(0, clock_out_h - 17) + (clock_out_m / 60 if clock_out_h >= 17 else 0)
     r = api.post("/mgmt/hr/attendance", {
         "employee_id": eid,
-        "work_date": today,
+        "work_date": work_date,
         "clock_in": f"{clock_in_h:02d}:{clock_in_m:02d}:00",
         "clock_out": f"{clock_out_h:02d}:{clock_out_m:02d}:00",
         "status": "normal" if clock_in_h <= 8 else "late",
         "work_hours": round(clock_out_h - clock_in_h + (clock_out_m - clock_in_m) / 60, 1),
         "overtime_hours": round(overtime, 1),
-    })
+    }, silent=True)
     if r:
-        name = [e[1] for e in EMPLOYEES if any(eid_stored == eid for eid_stored in state.employee_ids)]
-        print(f"  [HR]  考勤 {clock_in_h:02d}:{clock_in_m:02d}-{clock_out_h:02d}:{clock_out_m:02d} 加班={overtime:.1f}h")
+        state.attendance_done.add((eid, work_date))
+        print(f"  [HR]  考勤 {work_date} {clock_in_h:02d}:{clock_in_m:02d}-{clock_out_h:02d}:{clock_out_m:02d} 加班={overtime:.1f}h")
 
 
 def sim_purchase(api: API, state: State):
@@ -489,9 +501,9 @@ def sim_purchase(api: API, state: State):
 
 
 def sim_service_ticket(api: API, state: State):
-    """售后工单"""
-    if not state.customer_ids:
-        return
+    """售后工单 — 需要真实 customer_id"""
+    if not state.customer_ids or state.customer_ids == state.product_ids[:5]:
+        return  # 没有真实客户数据，跳过
     state.ticket_counter += 1
     uid = uuid4().hex[:6]
     r = api.post("/plm/service/tickets", {
@@ -583,7 +595,11 @@ def main():
         if isinstance(items, list):
             state.supplier_ids = [s["id"] for s in items]
     if not state.customer_ids:
-        state.customer_ids = state.product_ids[:5]  # fallback: reuse product IDs
+        # Try to load customers from API
+        d = api.get("/plm/customers", params={"skip": "0", "limit": "50"})
+        items = d.get("items", d) if isinstance(d, dict) else d
+        if isinstance(items, list) and items:
+            state.customer_ids = [c["id"] for c in items]
     if not state.bom_ids:
         state.bom_ids = [str(uuid4()) for _ in range(3)]  # placeholder
     if not state.routing_ids:
