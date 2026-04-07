@@ -6,6 +6,15 @@ import DataTable, { type Column } from '@/components/DataTable';
 import PageHeader from '@/components/PageHeader';
 import StatusBadge from '@/components/StatusBadge';
 
+function money(v: unknown): number {
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') return parseFloat(v) || 0;
+  return 0;
+}
+function fmt(v: unknown): string {
+  return money(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 const apColumns: Column<APRecord>[] = [
   { key: 'supplier_id', header: '供应商', render: r => {
     const rec = r as unknown as Record<string, unknown>;
@@ -13,12 +22,12 @@ const apColumns: Column<APRecord>[] = [
   }, className: 'font-mono' },
   { key: 'total_amount', header: '金额', className: 'text-right', render: r => {
     const rec = r as unknown as Record<string, unknown>;
-    return ((rec.total_amount as number) ?? 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 });
+    return fmt(rec.total_amount);
   }},
-  { key: 'paid_amount', header: '已付', className: 'text-right', render: r => r.paid_amount?.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) },
+  { key: 'paid_amount', header: '已付', className: 'text-right', render: r => fmt(r.paid_amount) },
   { key: 'balance', header: '余额', className: 'text-right', render: r => {
     const rec = r as unknown as Record<string, unknown>;
-    return ((rec.balance as number) ?? 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 });
+    return fmt(rec.balance);
   }},
   { key: 'due_date', header: '到期日', render: r => r.due_date?.slice(0, 10) },
   { key: 'status', header: '状态', render: r => <StatusBadge status={r.status} /> },
@@ -31,12 +40,12 @@ const arColumns: Column<ARRecord>[] = [
   }, className: 'font-mono' },
   { key: 'total_amount', header: '金额', className: 'text-right', render: r => {
     const rec = r as unknown as Record<string, unknown>;
-    return ((rec.total_amount as number) ?? 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 });
+    return fmt(rec.total_amount);
   }},
-  { key: 'received_amount', header: '已收', className: 'text-right', render: r => r.received_amount?.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) },
+  { key: 'received_amount', header: '已收', className: 'text-right', render: r => fmt(r.received_amount) },
   { key: 'balance', header: '余额', className: 'text-right', render: r => {
     const rec = r as unknown as Record<string, unknown>;
-    return ((rec.balance as number) ?? 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 });
+    return fmt(rec.balance);
   }},
   { key: 'due_date', header: '到期日', render: r => r.due_date?.slice(0, 10) },
   { key: 'status', header: '状态', render: r => <StatusBadge status={r.status} /> },
@@ -48,11 +57,11 @@ export default function APARList() {
   const { data: arData, isLoading: arLoading } = useQuery({ queryKey: ['ar'], queryFn: () => mgmtApi.listAR() });
 
   return (
-    <div className="p-6">
-      <PageHeader title="应付 / 应收" subtitle="AP / AR" icon={<CreditCard className="text-indigo-500" size={24} />} />
-      <div className="flex gap-1 mb-4 bg-[hsl(210,40%,96.1%)] p-1 rounded-lg w-fit">
-        <button onClick={() => setTab('ap')} className={`px-4 py-1.5 text-sm rounded-md transition ${tab === 'ap' ? 'bg-white shadow font-medium' : 'hover:bg-white/50'}`}>应付账款 (AP)</button>
-        <button onClick={() => setTab('ar')} className={`px-4 py-1.5 text-sm rounded-md transition ${tab === 'ar' ? 'bg-white shadow font-medium' : 'hover:bg-white/50'}`}>应收账款 (AR)</button>
+    <div className="p-8 max-w-[1200px] mx-auto">
+      <PageHeader title="应付 / 应收" subtitle="AP / AR" icon={<CreditCard size={22} strokeWidth={1.5} />} />
+      <div className="flex gap-1 mb-4 p-1 rounded-lg w-fit" style={{ background: 'var(--bg-hover)' }}>
+        <button onClick={() => setTab('ap')} className={`px-4 py-1.5 text-sm rounded-md transition ${tab === 'ap' ? 'bg-white shadow font-medium' : ''}`}>应付账款 (AP)</button>
+        <button onClick={() => setTab('ar')} className={`px-4 py-1.5 text-sm rounded-md transition ${tab === 'ar' ? 'bg-white shadow font-medium' : ''}`}>应收账款 (AR)</button>
       </div>
       {tab === 'ap'
         ? <DataTable<APRecord> columns={apColumns} data={apData || []} loading={apLoading} emptyText="暂无应付记录" />
