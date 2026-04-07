@@ -36,7 +36,7 @@ export default function Login() {
         {/* Logo */}
         <div className="text-center mb-10">
           <div
-            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-5"
+            className="inline-flex items-center justify-center w-16 h-16 rounded mb-5"
             style={{ background: 'var(--accent)', boxShadow: '0 4px 16px rgba(0,113,227,0.3)' }}
           >
             <span className="text-white text-2xl font-bold">F</span>

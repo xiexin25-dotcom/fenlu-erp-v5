@@ -14,7 +14,13 @@ async function request<T>(path: string, opts?: RequestInit): Promise<T> {
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail || `HTTP ${res.status}`);
+    let msg = `HTTP ${res.status}`;
+    if (body.detail) {
+      if (typeof body.detail === 'string') msg = body.detail;
+      else if (Array.isArray(body.detail)) msg = body.detail.map((e: { msg?: string; loc?: string[] }) => e.msg || JSON.stringify(e)).join('; ');
+      else msg = JSON.stringify(body.detail);
+    }
+    throw new Error(msg);
   }
   return res.json();
 }
@@ -61,8 +67,8 @@ export interface ECN {
   affected_product_id: string; description: string; created_at: string;
 }
 export interface Customer {
-  id: string; code: string; name: string; rating: string; industry: string;
-  contact_name: string; contact_phone: string; created_at: string;
+  id: string; code: string; name: string; kind: string; rating: string; industry: string;
+  contact_name: string; contact_phone: string; is_online: boolean; created_at: string;
 }
 export interface ServiceTicket {
   id: string; ticket_number: string; customer_id: string; customer_name?: string;
