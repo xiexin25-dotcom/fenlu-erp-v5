@@ -10,6 +10,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from packages.shared.db import get_session
 
 from .schemas import (
+    POCreate,
+    POResponse,
+    PRCreate,
+    PRResponse,
+    ReceiptCreate,
+    ReceiptResponse,
+    RFQCreate,
+    RFQLineUpdate,
+    RFQResponse,
+    StatusTransition,
     SupplierCreate,
     SupplierListParams,
     SupplierRatingCreate,
@@ -19,6 +29,7 @@ from .schemas import (
     TierChangeRequest,
     TierChangeResponse,
 )
+from packages.supply_chain.services.purchase_service import PurchaseService
 from packages.supply_chain.services.supplier_service import SupplierService
 
 router = APIRouter(prefix="/scm", tags=["supply-chain"])
@@ -190,3 +201,199 @@ async def list_ratings(
     svc = SupplierService(session)
     ratings = await svc.list_ratings(tenant_id, supplier_id)
     return [SupplierRatingResponse.model_validate(r) for r in ratings]
+
+
+# =========================================================================== #
+# Purchase Request
+# =========================================================================== #
+
+
+@router.post("/purchase-requests", response_model=PRResponse, status_code=201)
+async def create_pr(
+    body: PRCreate,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> PRResponse:
+    svc = PurchaseService(session)
+    pr = await svc.create_pr(tenant_id, body)
+    return PRResponse.model_validate(pr)
+
+
+@router.get("/purchase-requests/{pr_id}", response_model=PRResponse)
+async def get_pr(
+    pr_id: UUID,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> PRResponse:
+    svc = PurchaseService(session)
+    pr = await svc.get_pr(tenant_id, pr_id)
+    if pr is None:
+        raise HTTPException(status_code=404, detail="PurchaseRequest not found")
+    return PRResponse.model_validate(pr)
+
+
+@router.post("/purchase-requests/{pr_id}/transition", response_model=PRResponse)
+async def transition_pr(
+    pr_id: UUID,
+    body: StatusTransition,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> PRResponse:
+    svc = PurchaseService(session)
+    try:
+        pr = await svc.transition_pr(tenant_id, pr_id, body.to_status)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return PRResponse.model_validate(pr)
+
+
+# =========================================================================== #
+# RFQ
+# =========================================================================== #
+
+
+@router.post("/rfqs", response_model=RFQResponse, status_code=201)
+async def create_rfq(
+    body: RFQCreate,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> RFQResponse:
+    svc = PurchaseService(session)
+    rfq = await svc.create_rfq(tenant_id, body)
+    return RFQResponse.model_validate(rfq)
+
+
+@router.get("/rfqs/{rfq_id}", response_model=RFQResponse)
+async def get_rfq(
+    rfq_id: UUID,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> RFQResponse:
+    svc = PurchaseService(session)
+    rfq = await svc.get_rfq(tenant_id, rfq_id)
+    if rfq is None:
+        raise HTTPException(status_code=404, detail="RFQ not found")
+    return RFQResponse.model_validate(rfq)
+
+
+@router.post("/rfqs/{rfq_id}/transition", response_model=RFQResponse)
+async def transition_rfq(
+    rfq_id: UUID,
+    body: StatusTransition,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> RFQResponse:
+    svc = PurchaseService(session)
+    try:
+        rfq = await svc.transition_rfq(tenant_id, rfq_id, body.to_status)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return RFQResponse.model_validate(rfq)
+
+
+@router.patch("/rfqs/{rfq_id}/lines/{line_id}", response_model=RFQResponse)
+async def update_rfq_line(
+    rfq_id: UUID,
+    line_id: UUID,
+    body: RFQLineUpdate,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> RFQResponse:
+    svc = PurchaseService(session)
+    try:
+        await svc.update_rfq_line_price(tenant_id, rfq_id, line_id, body)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    rfq = await svc.get_rfq(tenant_id, rfq_id)
+    return RFQResponse.model_validate(rfq)
+
+
+# =========================================================================== #
+# Purchase Order
+# =========================================================================== #
+
+
+@router.post("/purchase-orders", response_model=POResponse, status_code=201)
+async def create_po(
+    body: POCreate,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> POResponse:
+    svc = PurchaseService(session)
+    po = await svc.create_po(tenant_id, body)
+    return POResponse.model_validate(po)
+
+
+@router.get("/purchase-orders/{po_id}", response_model=POResponse)
+async def get_po(
+    po_id: UUID,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> POResponse:
+    svc = PurchaseService(session)
+    po = await svc.get_po(tenant_id, po_id)
+    if po is None:
+        raise HTTPException(status_code=404, detail="PurchaseOrder not found")
+    return POResponse.model_validate(po)
+
+
+@router.post("/purchase-orders/{po_id}/transition", response_model=POResponse)
+async def transition_po(
+    po_id: UUID,
+    body: StatusTransition,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> POResponse:
+    svc = PurchaseService(session)
+    try:
+        po = await svc.transition_po(tenant_id, po_id, body.to_status)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return POResponse.model_validate(po)
+
+
+# =========================================================================== #
+# Purchase Receipt
+# =========================================================================== #
+
+
+@router.post("/purchase-receipts", response_model=ReceiptResponse, status_code=201)
+async def create_receipt(
+    body: ReceiptCreate,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> ReceiptResponse:
+    svc = PurchaseService(session)
+    try:
+        receipt = await svc.create_receipt(tenant_id, body)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return ReceiptResponse.model_validate(receipt)
+
+
+@router.get("/purchase-receipts/{receipt_id}", response_model=ReceiptResponse)
+async def get_receipt(
+    receipt_id: UUID,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> ReceiptResponse:
+    svc = PurchaseService(session)
+    receipt = await svc.get_receipt(tenant_id, receipt_id)
+    if receipt is None:
+        raise HTTPException(status_code=404, detail="PurchaseReceipt not found")
+    return ReceiptResponse.model_validate(receipt)
+
+
+@router.post("/purchase-receipts/{receipt_id}/transition", response_model=ReceiptResponse)
+async def transition_receipt(
+    receipt_id: UUID,
+    body: StatusTransition,
+    tenant_id: UUID = Depends(_tenant_id),
+    session: AsyncSession = Depends(get_session),
+) -> ReceiptResponse:
+    svc = PurchaseService(session)
+    try:
+        receipt = await svc.transition_receipt(tenant_id, receipt_id, body.to_status)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return ReceiptResponse.model_validate(receipt)
