@@ -30,6 +30,9 @@ dev = [
     "respx>=0.21.0",
 ]
 
+[tool.setuptools.packages.find]
+include = ["packages*", "apps*"]
+
 [tool.uv.workspace]
 members = ["apps/api_gateway", "packages/shared", "packages/product_lifecycle", "packages/production", "packages/supply_chain", "packages/management_decision"]
 

@@ -15,3 +15,5 @@ node_modules/
 .vscode/
 .idea/
 *.log
+uv.lock
+apps/web-shell/dist/
