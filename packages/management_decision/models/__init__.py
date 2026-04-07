@@ -11,6 +11,7 @@ from .attendance import Attendance, AttendanceStatus
 from .casbin_rule import CasbinRule
 from .finance import AccountType, GLAccount, JournalEntry, JournalLine, JournalStatus
 from .hr import Employee, Payroll, PayrollItem, PayrollStatus
+from .kpi import KPIDataPoint, KPIDefinition
 
 __all__ = [
     "AccountType",
@@ -30,6 +31,8 @@ __all__ = [
     "JournalEntry",
     "JournalLine",
     "JournalStatus",
+    "KPIDataPoint",
+    "KPIDefinition",
     "Payroll",
     "PayrollItem",
     "PayrollStatus",

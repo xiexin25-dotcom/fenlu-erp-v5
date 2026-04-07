@@ -388,3 +388,27 @@ class CasbinRoleAssign(BaseSchema):
     user_id: UUID
     role: str = Field(..., description="角色名,如 role:admin")
     tenant_id: UUID
+
+
+# --------------------------------------------------------------------------- #
+# KPI Definition (BI 看板)
+# --------------------------------------------------------------------------- #
+
+
+class KPIDefinitionOut(BaseSchema):
+    id: UUID
+    code: str
+    name: str
+    category: str
+    unit: str
+    source_lane: str
+    aggregation: str
+    description: str | None
+    is_active: bool
+
+
+class KPIDataPointOut(BaseSchema):
+    kpi_code: str
+    period: date
+    value: float
+    target: float | None

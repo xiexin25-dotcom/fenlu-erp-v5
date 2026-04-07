@@ -40,6 +40,8 @@ from .schemas import (
     GLAccountOut,
     JournalEntryCreate,
     JournalEntryOut,
+    KPIDataPointOut,
+    KPIDefinitionOut,
     PayrollOut,
 )
 
@@ -953,3 +955,86 @@ async def reload_policies(
 
 
 router.include_router(policy_router)
+
+
+# =========================================================================== #
+# BI · KPI
+# =========================================================================== #
+
+bi_router = APIRouter(prefix="/bi", tags=["bi"])
+
+
+@bi_router.post(
+    "/kpis/seed",
+    dependencies=[Depends(require_permission("mgmt.kpi", "create"))],
+)
+async def seed_kpis(
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, int]:
+    from packages.management_decision.services.kpi import seed_kpi_definitions
+
+    count = await seed_kpi_definitions(
+        session, tenant_id=user.tenant_id, created_by=user.id
+    )
+    return {"seeded": count}
+
+
+@bi_router.get(
+    "/kpis",
+    response_model=list[KPIDefinitionOut],
+    dependencies=[Depends(require_permission("mgmt.kpi", "read"))],
+)
+async def list_kpis(
+    user: CurrentUser,
+    category: str | None = Query(None),
+    session: AsyncSession = Depends(get_session),
+) -> list[KPIDefinitionOut]:
+    from packages.management_decision.services.kpi import list_kpi_definitions
+
+    defs = await list_kpi_definitions(
+        session, tenant_id=user.tenant_id, category=category
+    )
+    return [KPIDefinitionOut.model_validate(d) for d in defs]
+
+
+@bi_router.get(
+    "/kpi/{code}",
+    response_model=KPIDefinitionOut,
+    dependencies=[Depends(require_permission("mgmt.kpi", "read"))],
+)
+async def get_kpi(
+    code: str,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> KPIDefinitionOut:
+    from packages.management_decision.services.kpi import get_kpi_definition_by_code
+
+    defn = await get_kpi_definition_by_code(
+        session, tenant_id=user.tenant_id, code=code
+    )
+    if defn is None:
+        raise HTTPException(status_code=404, detail=f"KPI {code} 不存在")
+    return KPIDefinitionOut.model_validate(defn)
+
+
+@bi_router.get(
+    "/kpi/{code}/data",
+    response_model=list[KPIDataPointOut],
+    dependencies=[Depends(require_permission("mgmt.kpi", "read"))],
+)
+async def get_kpi_data(
+    code: str,
+    user: CurrentUser,
+    limit: int = Query(30, ge=1, le=365),
+    session: AsyncSession = Depends(get_session),
+) -> list[KPIDataPointOut]:
+    from packages.management_decision.services.kpi import list_kpi_data_points
+
+    points = await list_kpi_data_points(
+        session, tenant_id=user.tenant_id, kpi_code=code, limit=limit
+    )
+    return [KPIDataPointOut.model_validate(p) for p in points]
+
+
+router.include_router(bi_router)
