@@ -1,25 +1,50 @@
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Headphones } from 'lucide-react';
-import { plmApi, type ServiceTicket } from '@/lib/api';
+import { plmApi, api, type ServiceTicket } from '@/lib/api';
 import DataTable, { type Column } from '@/components/DataTable';
 import PageHeader from '@/components/PageHeader';
 import StatusBadge from '@/components/StatusBadge';
 
-const columns: Column<ServiceTicket>[] = [
-  { key: 'ticket_number', header: '工单号', className: 'font-mono' },
-  { key: 'subject', header: '主题' },
-  { key: 'customer_name', header: '客户', render: r => r.customer_name || r.customer_id?.slice(0, 8) },
-  { key: 'priority', header: '优先级', render: r => <span className={`text-xs font-medium ${r.priority === 'high' ? 'text-red-600' : r.priority === 'medium' ? 'text-amber-600' : 'text-gray-600'}`}>{r.priority === 'high' ? '高' : r.priority === 'medium' ? '中' : '低'}</span> },
-  { key: 'sla_hours', header: 'SLA', render: r => `${r.sla_hours}h` },
-  { key: 'status', header: '状态', render: r => <StatusBadge status={r.status} /> },
-  { key: 'nps_score', header: 'NPS', render: r => r.nps_score !== null ? <span className={r.nps_score >= 8 ? 'text-green-600' : r.nps_score >= 6 ? 'text-amber-600' : 'text-red-600'}>{r.nps_score}</span> : '—' },
-];
+const statusLabels: Record<string, string> = {
+  open: '待处理', in_progress: '处理中', pending_customer: '等待客户',
+  resolved: '已解决', closed: '已关闭',
+};
 
 export default function ServiceTicketList() {
-  const { data, isLoading } = useQuery({ queryKey: ['service-tickets'], queryFn: plmApi.listTickets });
+  const { data, isLoading } = useQuery({ queryKey: ['service-tickets'], queryFn: () => api.get<ServiceTicket[]>('/plm/service/tickets') });
+  const { data: custs } = useQuery({ queryKey: ['customers-all'], queryFn: plmApi.listCustomers });
+
+  const custMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const c of custs || []) m[c.id] = c.name;
+    return m;
+  }, [custs]);
+
+  const columns: Column<ServiceTicket>[] = [
+    { key: 'ticket_no', header: '工单号', className: 'font-mono',
+      render: r => (r as unknown as Record<string, string>).ticket_no || '' },
+    { key: 'description', header: '问题描述',
+      render: r => (r as unknown as Record<string, string>).description || '' },
+    { key: 'customer', header: '客户',
+      render: r => custMap[r.customer_id] || r.customer_id?.slice(0, 8) },
+    { key: 'sla_due', header: 'SLA截止',
+      render: r => {
+        const due = (r as unknown as Record<string, string>).sla_due_at;
+        if (!due) return '—';
+        return new Date(due).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      }},
+    { key: 'status', header: '状态',
+      render: r => <StatusBadge status={r.status} /> },
+    { key: 'nps_score', header: 'NPS',
+      render: r => r.nps_score !== null && r.nps_score !== undefined
+        ? <span style={{ color: r.nps_score >= 8 ? 'var(--status-green-fg)' : r.nps_score >= 6 ? 'var(--status-amber-fg)' : 'var(--status-red-fg)', fontWeight: 600 }}>{r.nps_score}</span>
+        : <span style={{ color: 'var(--fg-tertiary)' }}>—</span> },
+  ];
+
   return (
-    <div className="p-6">
-      <PageHeader title="售后工单" subtitle="Service Tickets · SLA + NPS" icon={<Headphones className="text-blue-500" size={24} />} />
+    <div className="p-8 max-w-[1200px] mx-auto">
+      <PageHeader title="售后工单" subtitle="Service Tickets · SLA + NPS" icon={<Headphones size={22} strokeWidth={1.5} />} />
       <DataTable<ServiceTicket> columns={columns} data={data || []} loading={isLoading} />
     </div>
   );
