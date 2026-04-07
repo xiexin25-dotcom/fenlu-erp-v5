@@ -53,6 +53,12 @@ PATH_PATTERNS = [
     (r"/mgmt/approval", "mgmt.approval", "submit"),
     (r"/auth/users", "auth.user", "create"),
     (r"/auth/roles", "auth.role", "create"),
+    # Sales
+    (r"/sales/.+/confirm", "sales.order", "confirm"),
+    (r"/sales/.+/payment", "sales.order", "payment"),
+    (r"/sales/.+/ship", "sales.order", "ship"),
+    (r"/sales$", "sales.order", "create"),
+    (r"/sales/", "sales.order", "create"),
 ]
 
 

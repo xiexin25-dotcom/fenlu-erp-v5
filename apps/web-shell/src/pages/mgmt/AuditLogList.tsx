@@ -24,12 +24,14 @@ const resourceLabels: Record<string, string> = {
   'mgmt.ar': '应收', 'mgmt.employee': '员工', 'mgmt.attendance': '考勤',
   'mgmt.payroll': '工资', 'mgmt.approval': '审批', 'mgmt.approval_def': '审批流',
   'auth.user': '用户', 'auth.role': '角色',
+  'sales.order': '销售订单',
 };
 
 const actionLabels: Record<string, string> = {
   create: '新建', update: '修改', delete: '删除', transition: '状态变更',
   close: '关闭', report: '报工', post: '过账', run: '运行',
   receive: '入库', issue: '出库', submit: '提交', action: '审批操作',
+  confirm: '确认', payment: '收款', ship: '发货',
 };
 
 const methodColors: Record<string, string> = {
